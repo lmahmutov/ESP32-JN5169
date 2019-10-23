@@ -444,13 +444,13 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Network Up)";
         print_string += "\n";
-        print_string += "  Status: 0x" + au8Data[0];
+        print_string += "  Status: 0x" + String(au8Data[0]);
         print_string += "\n";
-        print_string += "  Short Address: 0x" + u16ShortAddr;
+        print_string += "  Short Address: 0x" + String(u16ShortAddr);
         print_string += "\n";
-        print_string += "  Extended Address: 0x" + u64ExtAddr;
+        print_string += "  Extended Address: 0x" + String(long(u64ExtAddr));
         print_string += "\n";
-        print_string += "  Channel: " + au8Data[11];
+        print_string += "  Channel: " + String(au8Data[11],DEC);
         print_string += "\n";
       }
       break;
@@ -793,10 +793,12 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
             //Todo check cluster
             if (u16ClusterId == 0x0402 || u16ClusterId == 0x0403 || u16ClusterId == 0x0405)
             {
+              //ToDo сделать нормальный бинд....
               sendBindRequest(u64ExtAddr, au8Data[5], u16ClusterId, 3, u64ExtendedAddr_coord, 1 );
               //0x8030
+              delay(50);
             }
-            delay(50);
+            
             
             /*
               sendBindRequest(UInt64 u64TargetExtAddr, byte u8TargetEndPoint, UInt16 u16ClusterID, byte u8DstAddrMode, UInt64 u64DstAddr, byte u8DstEndPoint)
@@ -1043,7 +1045,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
             u8Depth = au8Data[u8PayloadIndex++];
             u8Lqi = au8Data[u8PayloadIndex++];
             u8Flags = au8Data[u8PayloadIndex++];
-
+            u64ExtAddrArray[i]=u64ExtAddr;
+            u16ShortAddrArray[i]=u16NwkAddr;
             print_string += "  Neighbor " + i;
             print_string += ":";
             print_string += "\n";
@@ -1632,16 +1635,16 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Attribute Report)";
         print_string += "\n";
-        print_string += "  SQN: 0x" + String(au8Data[0], HEX);
-        print_string += "\n";
-        print_string += "  Src Addr: 0x" + String(u16SrcAddr, HEX);
-        print_string += "\n";
-        print_string += "  Src Ep: 0x" + String(au8Data[3], DEC);
-        print_string += "\n";
-        print_string += "  Cluster: 0x" + String(u16ClusterId, HEX);
+        //print_string += "  SQN: 0x" + String(au8Data[0], HEX);
+        //print_string += "\n";
+        //print_string += "  Src Addr: 0x" + String(u16SrcAddr, HEX);
+        //print_string += "\n";
+        //print_string += "  Src Ep: 0x" + String(au8Data[3], DEC);
+        //print_string += "\n";
+        //print_string += "  Cluster: 0x" + String(u16ClusterId, HEX);
         //displayClusterId(u16ClusterId);
-        print_string += "\n";
-        displayAttribute(u16AttribId, au8Data[9], au8Data, 12, u16AttributeSize);
+        //print_string += "\n";
+        displayAttribute(u16SrcAddr, u16ClusterId, u16AttribId, au8Data[9], au8Data, 12, u16AttributeSize);
       }
       break;
 
@@ -2373,17 +2376,17 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (APS Data Confirm Fail)";
         print_string += "\n";
-        print_string += "  Status: 0x" + au8Data[0];
+        print_string += "  Status: 0x" + String(au8Data[0], HEX);
         print_string += "\n";
-        print_string += "  Source Endpoint: 0x" + au8Data[1];
+        print_string += "  Source Endpoint: 0x" + String(au8Data[1],HEX);
         print_string += "\n";
-        print_string += "  Destination Endpoint: 0x" + au8Data[2];
+        print_string += "  Destination Endpoint: 0x" + String(au8Data[2],HEX);
         print_string += "\n";
-        print_string += "  Destination Mode: 0x" + au8Data[3];
+        print_string += "  Destination Mode: 0x" + String(au8Data[3],HEX);
         print_string += "\n";
-        print_string += "  Destination Address: 0x" + u16DestAddr;
+        print_string += "  Destination Address: 0x" + String(u16DestAddr,HEX);
         print_string += "\n";
-        print_string += "  SQN: 0x" + au8Data[6];
+        print_string += "  SQN: 0x" + String(au8Data[6],HEX);
         print_string += "\n";
       }
       break;
@@ -2398,13 +2401,13 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Complex Descriptor Response)";
         print_string += "\n";
-        print_string += "  SQN: 0x" + au8Data[0];
+        print_string += "  SQN: 0x" + String(au8Data[0],HEX);
         print_string += "\n";
-        print_string += "  Status: 0x" + au8Data[1];
+        print_string += "  Status: 0x" + String(au8Data[1],HEX);
         print_string += "\n";
-        print_string += "  Address of Interest: 0x" + u16AddressOfInterest;
+        print_string += "  Address of Interest: 0x" + String(u16AddressOfInterest,HEX);
         print_string += "\n";
-        print_string += "  Length: " + au8Data[4];
+        print_string += "  Length: " + String(au8Data[4], HEX);
         print_string += "\n";
 
         if (au8Data[1] == 0)

@@ -13,6 +13,8 @@ uint16_t rxMessageType = 0;
 uint8_t rxMessageCount    = 0;
 bool rxMessageInEscape = false;
 byte rxByte;
+uint64_t u64ExtAddrArray[255];
+uint16_t u16ShortAddrArray[255];
 //
 bool showAdditionalDebug = false;
 uint16_t u16ShortAddr = 0;
@@ -68,8 +70,7 @@ void serialEvent() {
     }
     else if (rxByte == 0x03)
     {
-      start_decode = true;
-      //displayDecodedCommand(rxMessageType, rxMessageLength, rxMessageData);
+      displayDecodedCommand(rxMessageType, rxMessageLength, rxMessageData);
     }
     else
     {
@@ -138,9 +139,10 @@ void setup() {
   // transmitCommand(0x0012, 0, 0);
   //delay(5000);
   //Check version of firmware on JN5169
-  transmitCommand(0x0010, 0, 0);
-  //transmitCommand(0x0024, 0, 0);
+  //transmitCommand(0x0010, 0, 0);
+  transmitCommand(0x0024, 0, 0);
   //delay(1000);
+  //transmitCommand(0x0015, 0, 0);
   //network state
   transmitCommand(0x0009, 0, 0);
   DiscoverDevices();
@@ -150,75 +152,6 @@ void setup() {
 }
 
 void loop() {
-  if (start_decode)
-  {
-    displayDecodedCommand(rxMessageType, rxMessageLength, rxMessageData);
-    start_decode = false;
-  }
+
   serialEvent();
-}
-
-void transmitCommand(int iCommand, int iLength, byte data[])
-{
-  int i;
-  uint8_t specialCharacter[1];
-  uint8_t message[256];
-
-  // Build message payload, starting with the type field
-  message[0] = (byte)(iCommand >> 8);
-  message[1] = (byte)iCommand;
-
-  // Add message length
-  message[2] = (byte)(iLength >> 8);
-  message[3] = (byte)iLength;
-
-  // Calculate checksum of header
-  byte csum = 0;
-  csum ^= message[0];
-  csum ^= message[1];
-  csum ^= message[2];
-  csum ^= message[3];
-
-  // Add message data and update checksum
-  if (iLength != 0)
-  {
-    for (i = 0; i < iLength; i++)
-    {
-      message[5 + i] = data[i];
-      csum ^= data[i];
-    }
-  }
-
-  // Add checksum
-  message[4] = csum;
-
-  // Transmit the message, send start character first
-  specialCharacter[0] = 1;
-  writeByte(specialCharacter[0]);
-
-  // Transmit message payload with byte stuffing as required
-  for (i = 0; i < iLength + 5; i++)
-  {
-    // Check if stuffing is required
-    if (message[i] < 0x10)
-    {
-      // First send escape character then message byte XOR'd with 0x10
-      specialCharacter[0] = 2;
-      writeByte(specialCharacter[0]);
-      int msg = message[i];
-      msg = msg ^ 0x10;
-      message[i] = (byte)msg;
-      writeByte(message[i]);
-
-    }
-    else
-    {
-      // Send the character with no modification
-      writeByte(message[i]);
-    }
-  }
-
-  // Send end character
-  specialCharacter[0] = 3;
-  writeByte(specialCharacter[0]);
 }

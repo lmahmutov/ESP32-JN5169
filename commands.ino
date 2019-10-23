@@ -1,3 +1,69 @@
+void transmitCommand(int iCommand, int iLength, byte data[])
+{
+  int i;
+  uint8_t specialCharacter[1];
+  uint8_t message[256];
+
+  // Build message payload, starting with the type field
+  message[0] = (byte)(iCommand >> 8);
+  message[1] = (byte)iCommand;
+
+  // Add message length
+  message[2] = (byte)(iLength >> 8);
+  message[3] = (byte)iLength;
+
+  // Calculate checksum of header
+  byte csum = 0;
+  csum ^= message[0];
+  csum ^= message[1];
+  csum ^= message[2];
+  csum ^= message[3];
+
+  // Add message data and update checksum
+  if (iLength != 0)
+  {
+    for (i = 0; i < iLength; i++)
+    {
+      message[5 + i] = data[i];
+      csum ^= data[i];
+    }
+  }
+
+  // Add checksum
+  message[4] = csum;
+
+  // Transmit the message, send start character first
+  specialCharacter[0] = 1;
+  writeByte(specialCharacter[0]);
+
+  // Transmit message payload with byte stuffing as required
+  for (i = 0; i < iLength + 5; i++)
+  {
+    // Check if stuffing is required
+    if (message[i] < 0x10)
+    {
+      // First send escape character then message byte XOR'd with 0x10
+      specialCharacter[0] = 2;
+      writeByte(specialCharacter[0]);
+      int msg = message[i];
+      msg = msg ^ 0x10;
+      message[i] = (byte)msg;
+      writeByte(message[i]);
+
+    }
+    else
+    {
+      // Send the character with no modification
+      writeByte(message[i]);
+    }
+  }
+
+  // Send end character
+  specialCharacter[0] = 3;
+  writeByte(specialCharacter[0]);
+}
+
+
 void setPermitJoin(uint16_t u16ShortAddr, byte u8Interval, byte u8TCsignificance)
 {
   byte commandData[4];
@@ -78,106 +144,7 @@ void sendBindRequest(uint64_t u64TargetExtAddr, byte u8TargetEndPoint, uint16_t 
   transmitCommand(0x0030, u8Len, commandData);
 }
 
-void displayAttribute(uint16_t u16AttribId, byte u8AttribType, byte* au8AttribData, byte u8AttribIndex, uint16_t u16AttrSize)
-{
-  attr_response += "  Attribute ID: 0x" + String(u16AttribId, HEX);
-  attr_response += "\n";
-  attr_response += "  Attribute Size: 0x" + String(u16AttrSize, HEX);
-  attr_response += "\n";
-  attr_response += "  Attribute Type: 0x" + String(u8AttribType,HEX);
 
-  switch (u8AttribType)
-  {
-    case 0x10:
-      attr_response += " (Boolean)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: 0x" + String(au8AttribData[u8AttribIndex], DEC);
-      attr_response += "\n";
-      break;
-    case 0x18:
-      attr_response += " (8-bit Bitmap)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: 0x" + String(au8AttribData[u8AttribIndex],HEX);
-      attr_response += "\n";
-      break;
-    case 0x20:
-      attr_response += " (UINT8)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: 0x" + String(au8AttribData[u8AttribIndex], HEX);
-      attr_response += "\n";
-      break;
-    case 0x21:
-      uint16_t u16Data;
-      u16Data   = au8AttribData[u8AttribIndex];
-      u16Data <<= 8;
-      u16Data  |= au8AttribData[u8AttribIndex + 1];
-      attr_response += " (UINT16)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: 0x" + String(u16Data,HEX);
-      attr_response += "\n";
-      break;
-    case 0x23:
-      uint32_t u32Data;
-      u32Data = au8AttribData[u8AttribIndex];
-      u32Data <<= 8;
-      u32Data |= au8AttribData[u8AttribIndex + 1];
-      u32Data <<= 8;
-      u32Data |= au8AttribData[u8AttribIndex + 2];
-      u32Data <<= 8;
-      u32Data |= au8AttribData[u8AttribIndex + 3];
-      attr_response += " (UINT32)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: 0x" + String(u32Data,HEX);
-      attr_response += "\n";
-      break;
-    case 0x29:
-      uint16_t int16Data;
-      int16Data   = au8AttribData[u8AttribIndex];
-      int16Data <<= 8;
-      int16Data  |= au8AttribData[u8AttribIndex + 1];
-      attr_response += " (INT16)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: 0x" + String(int16Data,HEX);
-      attr_response += "\n";
-      break;
-    case 0x30:
-      attr_response += " (8-bit Enumeration)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: 0x" + au8AttribData[u8AttribIndex];
-      attr_response += "\n";
-      break;
-    case 0x42:
-      attr_response += " (Character String)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data (Len - " + String(u16AttrSize) + "): ";
-      for (int i = 0; i < u16AttrSize; i++)
-      {
-        char c = (char)au8AttribData[u8AttribIndex + i];
-        attr_response += c;
-      }
-      attr_response += "\n";
-      break;
-    case 0xF0:
-      attr_response += " (IEEE Address)";
-      attr_response += "\n";
-      attr_response += "  Attribute Data: " + au8AttribData[u8AttribIndex];
-      attr_response += ":" + au8AttribData[u8AttribIndex + 1];
-      attr_response += ":" + au8AttribData[u8AttribIndex + 2];
-      attr_response += ":" + au8AttribData[u8AttribIndex + 3];
-      attr_response += ":" + au8AttribData[u8AttribIndex + 4];
-      attr_response += ":" + au8AttribData[u8AttribIndex + 5];
-      attr_response += ":" + au8AttribData[u8AttribIndex + 6];
-      attr_response += ":" + au8AttribData[u8AttribIndex + 7];
-      attr_response += "\n";
-      break;
-    default:
-      attr_response += " (Unknown)";
-      attr_response += "\n";
-      break;
-  }
-  Serial.print(attr_response);
-  attr_response="";
-}
 
 void sendMgmtLqiRequest(uint16_t u16ShortAddr, byte u8StartIndex)
 {
