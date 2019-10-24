@@ -1,12 +1,6 @@
 void displayAttribute(uint16_t u16SrcAddr, uint16_t u16ClusterId, uint16_t u16AttribId, byte u8AttribType, byte* au8AttribData, byte u8AttribIndex, uint16_t u16AttrSize)
 {
-  for (int i = 0; i < (sizeof(u16ShortAddrArray)); i++) {
-    if (u16ShortAddrArray[i] == u16SrcAddr) {
-      attr_response += String(long(u64ExtAddrArray[i]),HEX);
-      attr_response += "\n";
-      break;
-    }
-  }
+
 
   //attr_response += "  Attribute ID: 0x" + String(u16AttribId, HEX);
   //attr_response += "\n";

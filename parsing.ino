@@ -1,7 +1,7 @@
 void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 {
 
-  if ((showAdditionalDebug == true) || (u16Type != 0x8011 && u16Type != 0x8012))
+  if ( (u16Type != 0x8011 && u16Type != 0x8012))
   {
     print_string += "Type: 0x";
     print_string += String(u16Type, HEX);
@@ -86,7 +86,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8011:
       {
-        if (showAdditionalDebug == true)
+
         {
           uint16_t u16ProfileID = 0;
           uint16_t u16ClusterID = 0;
@@ -119,7 +119,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8012:
       {
-        if (showAdditionalDebug == true)
+
         {
           print_string += "  (APS Data Confirm)";
           print_string += "\n";
@@ -355,7 +355,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         uint16_t u16PanId = 0;
         uint64_t u64ExtendedPANID = 0;
-
+        uint16_t u16ShortAddr = 0;
+        uint64_t u64ExtendedAddr = 0;
 
         u16ShortAddr = au8Data[0];
         u16ShortAddr <<= 8;
@@ -363,8 +364,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         for (int i = 0; i < 8; i++)
         {
-          u64ExtendedAddr_coord <<= 8;
-          u64ExtendedAddr_coord |= au8Data[2 + i];
+          u64ExtendedAddr <<= 8;
+          u64ExtendedAddr |= au8Data[2 + i];
         }
 
         u16PanId = au8Data[10];
@@ -376,25 +377,21 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
           u64ExtendedPANID <<= 8;
           u64ExtendedPANID |= au8Data[12 + i];
         }
-        unsigned long u16ShortAddr_long = u16ShortAddr;
-        unsigned long u64ExtendedAddr_long = u64ExtendedAddr_coord;
-        unsigned long u16PanId_long = u16PanId;
-        unsigned long u64ExtendedPANID_long = u64ExtendedPANID;
-        //unsigned long u16ShortAddr_long = u16ShortAddr;
+
 
         print_string += " (Network State Response)";
         print_string += "\n";
         print_string += "  Short Address: 0x";
-        print_string += String(u16ShortAddr_long, HEX);
+        print_string += String(u16ShortAddr, HEX);
         print_string += "\n";
         print_string += "  Extended Address: 0x";
-        print_string += String(u64ExtendedAddr_long, HEX);
+        print_string += String(long(u64ExtendedAddr), HEX);
         print_string += "\n";
         print_string += "  PAN ID: ";
-        print_string += String(u16PanId_long, HEX);
+        print_string += String(u16PanId, HEX);
         print_string += "\n";
         print_string += "  Ext PAN ID: 0x";
-        print_string += String(u64ExtendedPANID_long, HEX);
+        print_string += String(long(u64ExtendedPANID), HEX);
         print_string += "\n";
         print_string += "  Channel: ";
         print_string += String(au8Data[20], DEC);
@@ -432,6 +429,9 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8024:
       {
+        uint16_t u16ShortAddr = 0;
+        uint64_t u64ExtAddr = 0;
+
         u16ShortAddr   = au8Data[1];
         u16ShortAddr <<= 8;
         u16ShortAddr  |= au8Data[2];
@@ -450,7 +450,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += "\n";
         print_string += "  Extended Address: 0x" + String(long(u64ExtAddr));
         print_string += "\n";
-        print_string += "  Channel: " + String(au8Data[11],DEC);
+        print_string += "  Channel: " + String(au8Data[11], DEC);
         print_string += "\n";
       }
       break;
@@ -475,7 +475,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
     case 0x8015:
       {
         uint16_t u16PanId = 0;
-
+        uint16_t u16ShortAddr = 0;
         uint16_t u16SuperframeSpec = 0;
         uint32_t u32TimeStamp = 0;
         uint64_t u64ExtendedPANID = 0;
@@ -541,7 +541,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         uint64_t u64ExtPANID = 0;
         uint32_t u32Mic = 0;
         uint16_t u16PANID = 0;
-
+        uint16_t u16ShortAddr = 0;
         uint16_t u16DeviceId = 0;
 
         for (int i = 0; i < 8; i++)
@@ -638,8 +638,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8041:
       {
-
-
+        uint64_t u64ExtAddr = 0;
+        uint16_t u16ShortAddr = 0;
 
         for (int i = 0; i < 8; i++)
         {
@@ -672,7 +672,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8042:
       {
-
+        uint16_t u16ShortAddr = 0;
         uint16_t u16ManufacturerCode = 0;
         uint16_t u16RxSize = 0;
         uint16_t u16TxSize = 0;
@@ -739,7 +739,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
       {
 
         byte u8Length = 0;
-
+        uint16_t u16ShortAddr = 0;
         u16ShortAddr = au8Data[2];
         u16ShortAddr <<= 8;
         u16ShortAddr |= au8Data[3];
@@ -790,16 +790,17 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
             print_string += "    Cluster " + i;
             print_string += ":" + String(u16ClusterId, HEX);
-            //Todo check cluster
-            if (u16ClusterId == 0x0402 || u16ClusterId == 0x0403 || u16ClusterId == 0x0405)
-            {
+            /*
+              //Todo check cluster
+              if (u16ClusterId == 0x0402 || u16ClusterId == 0x0403 || u16ClusterId == 0x0405)
+              {
               //ToDo сделать нормальный бинд....
-              sendBindRequest(u64ExtAddr, au8Data[5], u16ClusterId, 3, u64ExtendedAddr_coord, 1 );
+
               //0x8030
               delay(50);
-            }
-            
-            
+              }
+
+            */
             /*
               sendBindRequest(UInt64 u64TargetExtAddr, byte u8TargetEndPoint, UInt16 u16ClusterID, byte u8DstAddrMode, UInt64 u64DstAddr, byte u8DstEndPoint)
               uint16_t u16ShortAddr = 0;
@@ -850,7 +851,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
     case 0x8045:
       {
 
-
+        uint16_t u16ShortAddr = 0;
         u16ShortAddr = au8Data[2];
         u16ShortAddr <<= 8;
         u16ShortAddr |= au8Data[3];
@@ -896,7 +897,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         if (u16Length == 9)
         {
 
-
+          uint64_t u64ExtAddr = 0;
           for (int i = 0; i < 8; i++)
           {
             u64ExtAddr <<= 8;
@@ -911,7 +912,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8048:
       {
-
+        uint64_t u64ExtAddr = 0;
 
         for (int i = 0; i < 8; i++)
         {
@@ -993,13 +994,13 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += "\n";
         print_string += "  SQN: 0x" + String(au8Data[0], HEX);
         print_string += "\n";
-        print_string += "  Status: 0x" + String(au8Data[1],HEX);
+        print_string += "  Status: 0x" + String(au8Data[1], HEX);
         print_string += "\n";
-        print_string += "  Nb Table Entries: " + String(u8NbTableEntries,HEX);
+        print_string += "  Nb Table Entries: " + String(u8NbTableEntries, HEX);
         print_string += "\n";
-        print_string += "  Start Index: " + String(u8StartIx,HEX);
+        print_string += "  Start Index: " + String(u8StartIx, HEX);
         print_string += "\n";
-        print_string += "  Nb Table List Count: " + String(u8NbTableListCount,HEX);
+        print_string += "  Nb Table List Count: " + String(u8NbTableListCount, HEX);
         print_string += "\n";
 
         ////comboBoxAddressList.Items.Clear();
@@ -1008,7 +1009,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         {
           byte i;
           uint64_t u64PanID = 0;
-
+          uint64_t u64ExtAddr = 0;
           uint16_t u16NwkAddr = 0;
           byte u8Lqi = 0;
           byte u8Depth = 0;
@@ -1045,8 +1046,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
             u8Depth = au8Data[u8PayloadIndex++];
             u8Lqi = au8Data[u8PayloadIndex++];
             u8Flags = au8Data[u8PayloadIndex++];
-            u64ExtAddrArray[i]=u64ExtAddr;
-            u16ShortAddrArray[i]=u16NwkAddr;
+
             print_string += "  Neighbor " + i;
             print_string += ":";
             print_string += "\n";
@@ -1881,7 +1881,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
     case 0x004D:
       {
 
-
+        uint16_t u16ShortAddr = 0;
+        uint64_t u64ExtAddr = 0;
 
         u16ShortAddr = au8Data[0];
         u16ShortAddr <<= 8;
@@ -1907,235 +1908,13 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8501:
       {
-        byte u8Offset = 0;
-        byte u8SQN;
-        byte u8SrcEndpoint;
-        uint16_t u16ClusterId;
-        uint16_t u16SrcAddr;
-        byte u8SrcAddrMode;
-        uint64_t u64RequestNodeAddress;
-        uint32_t u32FileOffset;
-        uint32_t u32FileVersion;
-        uint16_t u16ImageType;
-        uint16_t u16ManufactureCode;
-        uint16_t u16BlockRequestDelay;
-        byte u8MaxDataSize;
-        byte u8FieldControl;
 
-        u8SQN = au8Data[u8Offset++];
-
-        u8SrcEndpoint = au8Data[u8Offset++];
-
-        u16ClusterId = au8Data[u8Offset++];
-        u16ClusterId <<= 8;
-        u16ClusterId |= au8Data[u8Offset++];
-
-        u8SrcAddrMode = au8Data[u8Offset++];
-
-        u16SrcAddr = au8Data[u8Offset++];
-        u16SrcAddr <<= 8;
-        u16SrcAddr |= au8Data[u8Offset++];
-
-        u64RequestNodeAddress = au8Data[u8Offset++];
-        u64RequestNodeAddress <<= 8;
-        u64RequestNodeAddress |= au8Data[u8Offset++];
-        u64RequestNodeAddress <<= 8;
-        u64RequestNodeAddress |= au8Data[u8Offset++];
-        u64RequestNodeAddress <<= 8;
-        u64RequestNodeAddress |= au8Data[u8Offset++];
-        u64RequestNodeAddress <<= 8;
-        u64RequestNodeAddress |= au8Data[u8Offset++];
-        u64RequestNodeAddress <<= 8;
-        u64RequestNodeAddress |= au8Data[u8Offset++];
-        u64RequestNodeAddress <<= 8;
-        u64RequestNodeAddress |= au8Data[u8Offset++];
-        u64RequestNodeAddress <<= 8;
-        u64RequestNodeAddress |= au8Data[u8Offset++];
-
-        u32FileOffset = au8Data[u8Offset++];
-        u32FileOffset <<= 8;
-        u32FileOffset |= au8Data[u8Offset++];
-        u32FileOffset <<= 8;
-        u32FileOffset |= au8Data[u8Offset++];
-        u32FileOffset <<= 8;
-        u32FileOffset |= au8Data[u8Offset++];
-
-        u32FileVersion = au8Data[u8Offset++];
-        u32FileVersion <<= 8;
-        u32FileVersion |= au8Data[u8Offset++];
-        u32FileVersion <<= 8;
-        u32FileVersion |= au8Data[u8Offset++];
-        u32FileVersion <<= 8;
-        u32FileVersion |= au8Data[u8Offset++];
-
-        u16ImageType = au8Data[u8Offset++];
-        u16ImageType <<= 8;
-        u16ImageType |= au8Data[u8Offset++];
-
-        u16ManufactureCode = au8Data[u8Offset++];
-        u16ManufactureCode <<= 8;
-        u16ManufactureCode |= au8Data[u8Offset++];
-
-        u16BlockRequestDelay = au8Data[u8Offset++];
-        u16BlockRequestDelay <<= 8;
-        u16BlockRequestDelay |= au8Data[u8Offset++];
-
-        u8MaxDataSize = au8Data[u8Offset++];
-
-        u8FieldControl = au8Data[u8Offset++];
-
-        /*
-          print_string += " (OTA Block Request)";
-          print_string += "\n";
-          print_string += "  SQN: 0x" + u8SQN;
-          print_string += "\n";
-        */
-
-        print_string = "";
-        //richTextBoxCommandResponse.Text = "";
-
-
-        /*
-          print_string += "  Src Addr Mode: 0x" + u8SrcAddrMode;
-          print_string += "\n";
-          print_string += "  Src Addr: 0x" + u16SrcAddr;
-          print_string += "\n";
-          print_string += "  EndPoint: 0x" + u8SrcEndpoint;
-          print_string += "\n";
-          //displayClusterId(u16ClusterId);
-          print_string += "\n";
-
-          if ((u8FieldControl & 0x01) == 0x01)
-          {
-            print_string += "  Node Addr: 0x" + u64RequestNodeAddress.ToString("X16");
-            print_string += "\n";
-          }
-
-          print_string += "  File Offset: 0x" + u32FileOffset;
-          print_string += "\n";
-          print_string += "  File Version: 0x" + u32FileVersion;
-          print_string += "\n";
-          print_string += "  Image Type: 0x" + u16ImageType;
-          print_string += "\n";
-          print_string += "  Manu Code: 0x" + u16ManufactureCode;
-          print_string += "\n";
-          print_string += "  Block Delay: 0x" + u16BlockRequestDelay;
-          print_string += "\n";
-          print_string += "  Max Data Size: 0x" + u8MaxDataSize;
-          print_string += "\n";
-          print_string += "  Field Control: 0x" + u8FieldControl;
-          print_string += "\n";
-        */
-        // Send response
-        if (u8OTAWaitForDataParamsPending == 0)
-        {
-          byte u8NbrBytes = 0;
-
-          if ((u32FileOffset + u8MaxDataSize) > u32OtaFileTotalImage)
-          {
-            u8NbrBytes = (byte)(u32OtaFileTotalImage - u32FileOffset);
-          }
-          else
-          {
-            u8NbrBytes = u8MaxDataSize;
-          }
-          //sendOtaBlock(u8SrcAddrMode, u16SrcAddr, 1, u8SrcEndpoint, u8SQN, 0, u32FileOffset, u32FileVersion, u16ImageType, u16ManufactureCode, u8NbrBytes, au8OTAFile);
-        }
-        else
-        {
-          //sendOtaSetWaitForDataParams(u8SrcAddrMode, u16SrcAddr, 1, u8SrcEndpoint, u8SQN, 0x97, u32OTAWaitForDataParamsCurrentTime, u32OTAWaitForDataParamsRequestTime, u16OTAWaitForDataParamsBlockDelay);
-          u8OTAWaitForDataParamsPending = 0;
-        }
-
-        if (u8OtaInProgress == 0)
-        {
-          u8OtaInProgress = 1;
-          //textBoxOtaDownloadStatus.Text = "In Progress";
-          //progressBarOtaDownloadProgress.Value = 0;
-          //textBoxOtaFileOffset.Text = "0";
-        }
-        else
-        {
-          uint32_t u32PercentComplete = (u32FileOffset * 1000) / u32OtaFileTotalImage;
-          //progressBarOtaDownloadProgress.Value = (int)u32PercentComplete;
-          //textBoxOtaFileOffset.Text = u32FileOffset;
-        }
       }
       break;
     case 0x8503:
       {
 
-        byte u8Offset = 0;
-        byte u8SQN;
-        byte u8SrcEndpoint;
-        uint16_t u16ClusterId;
-        uint16_t u16SrcAddr;
-        byte u8SrcAddrMode;
-        uint32_t u32FileVersion;
-        uint16_t u16ImageType;
-        uint16_t u16ManufactureCode;
-        byte u8Status;
 
-        u8SQN = au8Data[u8Offset++];
-
-        u8SrcEndpoint = au8Data[u8Offset++];
-
-        u16ClusterId = au8Data[u8Offset++];
-        u16ClusterId <<= 8;
-        u16ClusterId |= au8Data[u8Offset++];
-
-        u8SrcAddrMode = au8Data[u8Offset++];
-
-        u16SrcAddr = au8Data[u8Offset++];
-        u16SrcAddr <<= 8;
-        u16SrcAddr |= au8Data[u8Offset++];
-
-        u32FileVersion = au8Data[u8Offset++];
-        u32FileVersion <<= 8;
-        u32FileVersion |= au8Data[u8Offset++];
-        u32FileVersion <<= 8;
-        u32FileVersion |= au8Data[u8Offset++];
-        u32FileVersion <<= 8;
-        u32FileVersion |= au8Data[u8Offset++];
-
-        u16ImageType = au8Data[u8Offset++];
-        u16ImageType <<= 8;
-        u16ImageType |= au8Data[u8Offset++];
-
-        u16ManufactureCode = au8Data[u8Offset++];
-        u16ManufactureCode <<= 8;
-        u16ManufactureCode |= au8Data[u8Offset++];
-
-        u8Status = au8Data[u8Offset++];
-
-        print_string += " (OTA End Request)";
-        print_string += "\n";
-        print_string += "  SQN: 0x" + u8SQN;
-        print_string += "\n";
-        print_string += "  Src Addr Mode: 0x" + u8SrcAddrMode;
-        print_string += "\n";
-        print_string += "  Src Addr: 0x" + u16SrcAddr;
-        print_string += "\n";
-        print_string += "  EndPoint: 0x" + u8SrcEndpoint;
-        print_string += "\n";
-        ////displayClusterId(u16ClusterId);
-        print_string += "\n";
-        print_string += "  File Version: 0x" + u32FileVersion;
-        print_string += "\n";
-        print_string += "  Image Type: 0x" + u16ImageType;
-        print_string += "\n";
-        print_string += "  Manu Code: 0x" + u16ManufactureCode;
-        print_string += "\n";
-        print_string += "  Status: 0x" + u8Status;
-        print_string += "\n";
-
-        //sendOtaEndResponse(u8SrcAddrMode, u16SrcAddr, 1, u8SrcEndpoint, u8SQN, 5, 10, u32FileVersion, u16ImageType, u16ManufactureCode);
-
-
-        //textBoxOtaDownloadStatus.Text = "Complete";
-        //textBoxOtaFileOffset.Text = "";
-        //progressBarOtaDownloadProgress.Value = 0;
-        u8OtaInProgress = 0;
       }
       break;
 
@@ -2358,14 +2137,15 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
       {
         print_string += " (Route Discovery Confirm)";
         print_string += "\n";
-        print_string += "  SQN: 0x" + au8Data[0];
+        print_string += "  SQN: 0x" + String(au8Data[0], HEX);
         print_string += "\n";
-        print_string += "  Status: 0x" + au8Data[1];
+        print_string += "  Status: 0x" + String(au8Data[1], HEX);
         print_string += "\n";
-        print_string += "  Network Status: 0x" + au8Data[2];
+        print_string += "  Network Status: 0x" + String(au8Data[2], HEX);
         print_string += "\n";
       }
       break;
+
     case 0x8702:
       {
         uint16_t u16DestAddr;
@@ -2378,15 +2158,15 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += "\n";
         print_string += "  Status: 0x" + String(au8Data[0], HEX);
         print_string += "\n";
-        print_string += "  Source Endpoint: 0x" + String(au8Data[1],HEX);
+        print_string += "  Source Endpoint: 0x" + String(au8Data[1], HEX);
         print_string += "\n";
-        print_string += "  Destination Endpoint: 0x" + String(au8Data[2],HEX);
+        print_string += "  Destination Endpoint: 0x" + String(au8Data[2], HEX);
         print_string += "\n";
-        print_string += "  Destination Mode: 0x" + String(au8Data[3],HEX);
+        print_string += "  Destination Mode: 0x" + String(au8Data[3], HEX);
         print_string += "\n";
-        print_string += "  Destination Address: 0x" + String(u16DestAddr,HEX);
+        print_string += "  Destination Address: 0x" + String(u16DestAddr, HEX);
         print_string += "\n";
-        print_string += "  SQN: 0x" + String(au8Data[6],HEX);
+        print_string += "  SQN: 0x" + String(au8Data[6], HEX);
         print_string += "\n";
       }
       break;
@@ -2401,11 +2181,11 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Complex Descriptor Response)";
         print_string += "\n";
-        print_string += "  SQN: 0x" + String(au8Data[0],HEX);
+        print_string += "  SQN: 0x" + String(au8Data[0], HEX);
         print_string += "\n";
-        print_string += "  Status: 0x" + String(au8Data[1],HEX);
+        print_string += "  Status: 0x" + String(au8Data[1], HEX);
         print_string += "\n";
-        print_string += "  Address of Interest: 0x" + String(u16AddressOfInterest,HEX);
+        print_string += "  Address of Interest: 0x" + String(u16AddressOfInterest, HEX);
         print_string += "\n";
         print_string += "  Length: " + String(au8Data[4], HEX);
         print_string += "\n";
