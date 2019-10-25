@@ -186,6 +186,22 @@ void setDeviceType(byte deviceType)  // 0 - Coordinator, 1 - router, 2 end devic
   transmitCommand(0x0023, 1, commandData);
 }
 
+void sendClusterOnOff(byte u8AddrMode, uint16_t u16ShortAddr, byte u8SrcEndPoint, byte u8DstEndPoint, byte u8CommandID)
+{
+  byte commandData[6];
+
+  // Build command payload
+  commandData[0] = u8AddrMode;
+  commandData[1] = (byte)(u16ShortAddr >> 8);
+  commandData[2] = (byte)u16ShortAddr;
+  commandData[3] = u8SrcEndPoint;
+  commandData[4] = u8DstEndPoint;
+  commandData[5] = u8CommandID;
+
+  // Transmit command
+  transmitCommand(0x0092, 6, commandData);
+}
+
 void sendMgmtLqiRequest(uint16_t u16ShortAddr, byte u8StartIndex)
 {
   byte commandData[4];

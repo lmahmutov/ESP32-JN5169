@@ -3,6 +3,7 @@
 #else
 #define ARDUINO_RUNNING_CORE 1
 #endif
+#include <FS.h>
 #include "time.h"
 #include "SPIFFS.h"
 #include <WiFiManager.h>
@@ -327,6 +328,7 @@ void loop() {
   //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
   ShowOled();
   delay(1000);
+  sendClusterOnOff(3,0xdb91,1,1,2);
 }
 
 /*--------------------------------------------------*/
