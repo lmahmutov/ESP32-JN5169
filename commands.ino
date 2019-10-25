@@ -155,7 +155,7 @@ void setChannel(int channel)
     {
       u32ChannelMaskTemp <<= 1;
     }
-   
+
     // Set channel mask
     setChannelMask(u32ChannelMaskTemp);
   }
@@ -173,6 +173,17 @@ void setChannelMask(uint32_t uiMask)
 
   // Transmit command
   transmitCommand(0x0021, 4, commandData);
+}
+
+void setDeviceType(byte deviceType)  // 0 - Coordinator, 1 - router, 2 end device
+{
+  byte commandData[1];
+
+  // Build command payload
+  commandData[0] = deviceType;
+
+  // Transmit command
+  transmitCommand(0x0023, 1, commandData);
 }
 
 void sendMgmtLqiRequest(uint16_t u16ShortAddr, byte u8StartIndex)

@@ -272,25 +272,31 @@ void setup() {
     ,  NULL
     ,  ARDUINO_RUNNING_CORE);
 
-  delay(1000);
+  //Hard RESET
   // transmitCommand(0x0012, 0, 0);
+  //SOFT RESET
   //transmitCommand(0x0011, 0, 0);
   //Check version of firmware on JN5169
-  //transmitCommand(0x0010, 0, 0);
+  transmitCommand(0x0010, 0, 0);
+  delay(50);
+  //Set device type Coordinator
+  setDeviceType(0);
+  delay(50);
+  //Set ZigBee Channel
   setChannel(15);
-  delay(20);
+  delay(50);
   transmitCommand(0x0024, 0, 0);
-  delay(20);
+  delay(50);
   //transmitCommand(0x0015, 0, 0);
   //network state
   transmitCommand(0x0009, 0, 0);
-  delay(20);
+  delay(50);
   DiscoverDevices();
-  delay(20);
+  delay(50);
   sendMgmtLqiRequest(0x0617, 0);
-  delay(20);
+  delay(50);
   setPermitJoin(0x0000, 0xFE, 0x00);
-  delay(20);
+  delay(50);
   transmitCommand(0x0014, 0, 0);
 }
 
