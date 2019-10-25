@@ -1,12 +1,16 @@
-void displayAttribute(uint16_t u16SrcAddr, uint16_t u16ClusterId, uint16_t u16AttribId, byte u8AttribType, byte* au8AttribData, byte u8AttribIndex, uint16_t u16AttrSize)
+void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, uint16_t u16AttribId, byte u8AttribType, byte* au8AttribData, byte u8AttribIndex, uint16_t u16AttrSize)
 {
-
-
-  //attr_response += "  Attribute ID: 0x" + String(u16AttribId, HEX);
+  
+  attr_response += "{Date Time: ";
+  attr_response += timeStringBuff;
+  attr_response += "{SQN: 0x" + String(SQN, DEC);
+  attr_response += ";Attribute ID: 0x" + String(u16AttribId, HEX);
   //attr_response += "\n";
-  //attr_response += "  Attribute Size: 0x" + String(u16AttrSize, HEX);
+  attr_response += ";Attribute Size: 0x" + String(u16AttrSize, HEX);
   //attr_response += "\n";
-  //attr_response += "  Attribute Type: 0x" + String(u8AttribType,HEX);
+  attr_response += ";Attribute Type: 0x" + String(u8AttribType,HEX);
+  attr_response += "}";
+  
   /*
      clusterList.Add(0x0000, " (General: Basic)");
      clusterList.Add(0x0001, " (General: Power Config)");
@@ -105,8 +109,8 @@ void displayAttribute(uint16_t u16SrcAddr, uint16_t u16ClusterId, uint16_t u16At
       }
       break;
     default:
-      attr_response += " (Unknown)";
-      attr_response += "\n";
+      //attr_response += " (Unknown)";
+      //attr_response += "\n";
       break;
   }
   /*
@@ -201,5 +205,9 @@ void displayAttribute(uint16_t u16SrcAddr, uint16_t u16ClusterId, uint16_t u16At
     }
   */
   Serial.print(attr_response);
+  
+  if (globalClient != NULL && globalClient->status() == WS_CONNECTED) {
+    globalClient->text(attr_response);
+  }
   attr_response = "";
 }

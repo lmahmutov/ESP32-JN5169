@@ -1536,13 +1536,13 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Read Attrib Response)";
         print_string += "\n";
-        print_string += "  SQN: 0x" + au8Data[0];
+        print_string += "  SQN: 0x" + String(au8Data[0], HEX);
         print_string += "\n";
-        print_string += "  Src Addr: 0x" + u16SrcAddr;
+        print_string += "  Src Addr: 0x" + String(u16SrcAddr,HEX);
         print_string += "\n";
-        print_string += "  EndPoint: 0x" + au8Data[3];
+        print_string += "  EndPoint: 0x" + String(au8Data[3],HEX);
         print_string += "\n";
-        print_string += "  Status: 0x" + au8Data[8];
+        print_string += "  Status: 0x" + String(au8Data[8],HEX);
         print_string += "\n";
         //displayClusterId(u16ClusterId);
         print_string += "\n";
@@ -1644,7 +1644,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         //print_string += "  Cluster: 0x" + String(u16ClusterId, HEX);
         //displayClusterId(u16ClusterId);
         //print_string += "\n";
-        displayAttribute(u16SrcAddr, u16ClusterId, u16AttribId, au8Data[9], au8Data, 12, u16AttributeSize);
+        displayAttribute(au8Data[0], u16SrcAddr, u16ClusterId, u16AttribId, au8Data[9], au8Data, 12, u16AttributeSize);
       }
       break;
 

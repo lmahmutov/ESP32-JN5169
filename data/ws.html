@@ -1,0 +1,26 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+   <title> ESP32 ZigBee Gateway</title>
+      <script type = "text/javascript">
+        var ws = new WebSocket("ws://" + document.location.hostname + "/ws");
+ 
+        ws.onopen = function() {
+			document.getElementById("display").innerHTML  = "Connected";
+         };
+
+        ws.onmessage = function(evt) {
+			document.getElementById('log').value+=">"+evt.data + "\n";
+        };
+      </script>
+   </head>
+ 
+   <body>
+      <div>
+         <p id = "display">Not connected</p>
+      </div>
+	  <div style='float:left;width: 50%;'>
+		<textarea id="log"  style='width: 100%' rows='30'></textarea>
+	  </div>	
+   </body>
+</html>
