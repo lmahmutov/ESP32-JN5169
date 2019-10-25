@@ -197,8 +197,8 @@ void UpdateLocalTime()
   }
   strftime(dateStringBuff, sizeof(dateStringBuff), "%A, %B %d %Y", &timeinfo);
   strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S", &timeinfo);
-  Serial.println(dateStringBuff);
-  Serial.println(timeStringBuff);
+  //Serial.println(dateStringBuff);
+  //Serial.println(timeStringBuff);
 
 }
 
@@ -222,6 +222,7 @@ void setup() {
   // Wifi Section
   WiFiManager wm;
   //wm.resetSettings();
+  
   wm.setAPCallback(configModeCallback);
   // id/name, placeholder/prompt, default, length
   if (!wm.autoConnect("ZigBeeGW")) {
@@ -276,6 +277,7 @@ void setup() {
   //transmitCommand(0x0011, 0, 0);
   //Check version of firmware on JN5169
   //transmitCommand(0x0010, 0, 0);
+  setChannel(15);
   delay(20);
   transmitCommand(0x0024, 0, 0);
   delay(20);
@@ -289,7 +291,7 @@ void setup() {
   delay(20);
   setPermitJoin(0x0000, 0xFE, 0x00);
   delay(20);
-
+  transmitCommand(0x0014, 0, 0);
 }
 
 void ShowOled()
@@ -312,7 +314,7 @@ void ShowOled()
 }
 
 void loop() {
-  Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
+  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
   ShowOled();
   delay(1000);
 }

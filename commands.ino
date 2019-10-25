@@ -144,7 +144,36 @@ void sendBindRequest(uint64_t u64TargetExtAddr, byte u8TargetEndPoint, uint16_t 
   transmitCommand(0x0030, u8Len, commandData);
 }
 
+void setChannel(int channel)
+{
+  if (channel >= 11 && channel <= 26)
+  {
+    // User is specifying a single channel, we must create the 32-bit mask from this
+    uint32_t u32ChannelMaskTemp = 1;
 
+    for (int i = 0; i < channel; i++)
+    {
+      u32ChannelMaskTemp <<= 1;
+    }
+   
+    // Set channel mask
+    setChannelMask(u32ChannelMaskTemp);
+  }
+}
+
+void setChannelMask(uint32_t uiMask)
+{
+  byte commandData[4];
+
+  // Build command payload
+  commandData[0] = (byte)(uiMask >> 24);
+  commandData[1] = (byte)(uiMask >> 16);
+  commandData[2] = (byte)(uiMask >> 8);
+  commandData[3] = (byte)uiMask;
+
+  // Transmit command
+  transmitCommand(0x0021, 4, commandData);
+}
 
 void sendMgmtLqiRequest(uint16_t u16ShortAddr, byte u8StartIndex)
 {
@@ -158,7 +187,6 @@ void sendMgmtLqiRequest(uint16_t u16ShortAddr, byte u8StartIndex)
   // Transmit command
   transmitCommand(0x004E, 3, commandData);
 }
-
 
 void DiscoverDevices()
 {
