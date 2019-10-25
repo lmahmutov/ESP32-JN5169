@@ -273,7 +273,8 @@ void setup() {
     ,  ARDUINO_RUNNING_CORE);
 
   //Hard RESET
-  // transmitCommand(0x0012, 0, 0);
+  //transmitCommand(0x0012, 0, 0);
+  //delay(2000);
   //SOFT RESET
   //transmitCommand(0x0011, 0, 0);
   //Check version of firmware on JN5169
@@ -283,7 +284,7 @@ void setup() {
   setDeviceType(0);
   delay(50);
   //Set ZigBee Channel
-  setChannel(15);
+  setChannel(11);
   delay(50);
   transmitCommand(0x0024, 0, 0);
   delay(50);
@@ -298,6 +299,9 @@ void setup() {
   setPermitJoin(0x0000, 0xFE, 0x00);
   delay(50);
   transmitCommand(0x0014, 0, 0);
+  delay(50);
+  transmitCommand(0x0017, 0, 0);
+  delay(50);
 }
 
 void ShowOled()

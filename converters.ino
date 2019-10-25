@@ -1,16 +1,17 @@
 void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, uint16_t u16AttribId, byte u8AttribType, byte* au8AttribData, byte u8AttribIndex, uint16_t u16AttrSize)
 {
-  
+
   attr_response += "{Date Time: ";
   attr_response += timeStringBuff;
   attr_response += "{SQN: 0x" + String(SQN, DEC);
+  attr_response += ";Cluster ID: 0x" + String(u16ClusterId, HEX);
   attr_response += ";Attribute ID: 0x" + String(u16AttribId, HEX);
   //attr_response += "\n";
   attr_response += ";Attribute Size: 0x" + String(u16AttrSize, HEX);
   //attr_response += "\n";
-  attr_response += ";Attribute Type: 0x" + String(u8AttribType,HEX);
-  attr_response += "}";
-  
+  attr_response += ";Attribute Type: 0x" + String(u8AttribType, HEX);
+
+
   /*
      clusterList.Add(0x0000, " (General: Basic)");
      clusterList.Add(0x0001, " (General: Power Config)");
@@ -44,6 +45,17 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
   */
   switch (u16ClusterId)
   {
+    case 0x0006:
+      switch (u8AttribType)
+      {
+        case 0x10:
+          //attr_response += " (Boolean)";
+          //attr_response += "\n";
+          attr_response += "  Attribute Data: 0x" + String(au8AttribData[u8AttribIndex], DEC);
+          //attr_response += "\n";
+          break;
+      }
+      break;
     case 0x0400:
       break;
     case 0x0402:
@@ -204,8 +216,9 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
       break;
     }
   */
+  attr_response += "}";
   Serial.print(attr_response);
-  
+
   if (globalClient != NULL && globalClient->status() == WS_CONNECTED) {
     globalClient->text(attr_response);
   }
