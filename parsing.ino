@@ -737,7 +737,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8043:
       {
-
+        memcpy(ClDataNewDevice, &(au8Data[4]), 100);
+        /*
         byte u8Length = 0;
         uint16_t u16ShortAddr = 0;
         u16ShortAddr = au8Data[2];
@@ -790,23 +791,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
             print_string += "    Cluster " + i;
             print_string += ":" + String(u16ClusterId, HEX);
-            /*
-              //Todo check cluster
-              if (u16ClusterId == 0x0402 || u16ClusterId == 0x0403 || u16ClusterId == 0x0405)
-              {
-              //ToDo сделать нормальный бинд....
-
-              //0x8030
-              delay(50);
-              }
-
-            */
-            /*
-              sendBindRequest(UInt64 u64TargetExtAddr, byte u8TargetEndPoint, UInt16 u16ClusterID, byte u8DstAddrMode, UInt64 u64DstAddr, byte u8DstEndPoint)
-              uint16_t u16ShortAddr = 0;
-              uint64_t u64ExtendedAddr_coord = 0;
-              uint64_t u64ExtAddr = 0;
-            */
+            
             //displayClusterId(u16ClusterId);
             print_string += "\n";
             u16Index += 2;
@@ -834,6 +819,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
             u16Index += 2;
           }
         }
+        */
+        ClResponse = true;
       }
       break;
     /*
@@ -850,12 +837,13 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
     */
     case 0x8045:
       {
-
+        memcpy(rxMessageData_newDevice, &(au8Data[4]), 100);
+        /*
         uint16_t u16ShortAddr = 0;
         u16ShortAddr = au8Data[2];
         u16ShortAddr <<= 8;
         u16ShortAddr |= au8Data[3];
-
+        
         print_string += " (Active Endpoints Response)";
         print_string += "\n";
         print_string += "  SQN: 0x" + String(au8Data[0], HEX);
@@ -868,15 +856,18 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += "\n";
         print_string += "  Endpoint List: ";
         print_string += "\n";
-
+        //rxMessageData_newDevice[0] = au8Data[4];
         for (int i = 0; i < au8Data[4]; i++)
         {
+          //rxMessageData_newDevice[1+i] = au8Data[i + 5];
           print_string += "    Endpoint " + i;
           print_string += ": ";
           print_string += "0x" + String(au8Data[i + 5], HEX);
-          simpleDescriptorRequest(u16ShortAddr, au8Data[i + 5]);
+          //simpleDescriptorRequest(u16ShortAddr, au8Data[i + 5]);
           print_string += "\n";
         }
+        */
+        EpResponse = true;        
       }
       break;
 
@@ -922,9 +913,9 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Leave Indication)";
         print_string += "\n";
-        print_string += "  Extended Address: 0x" + u64ExtAddr;
+        print_string += "  Extended Address: 0x" + String(long(u64ExtAddr),HEX);
         print_string += "\n";
-        print_string += "  Rejoin Status: 0x" + au8Data[8];
+        print_string += "  Rejoin Status: 0x" + String(au8Data[8]);
         print_string += "\n";
       }
       break;
@@ -1893,6 +1884,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
           u64ExtAddr <<= 8;
           u64ExtAddr |= au8Data[2 + i];
         }
+        /*
         unsigned long u16ShortAddr_long = u16ShortAddr;
         unsigned long u64ExtAddr_long = u64ExtAddr;
 
@@ -1902,7 +1894,12 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += "\n";
         print_string += "  Extended Address: 0x" + String(u64ExtAddr_long, HEX);
         print_string += "\n";
-        activeEndpointDescriptorRequest(u16ShortAddr);
+        */
+        new_device_LongAddr = u64ExtAddr;
+        new_device_ShortAddr = u16ShortAddr;
+        new_device_connected=true;
+        
+        //activeEndpointDescriptorRequest(u16ShortAddr);
       }
       break;
 

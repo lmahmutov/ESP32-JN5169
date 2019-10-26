@@ -35,10 +35,22 @@ const int   daylightOffset_sec = 3600;
 char dateStringBuff[50]; //50 chars should be enough
 char timeStringBuff[50]; //50 chars should be enough
 
-//---------------------------------
+//---------------------------------------
 String print_string = "";
 String attr_response = "";
-
+// ------task get full info -----
+bool new_device_connected = false;
+uint16_t new_device_ShortAddr = 0;
+uint64_t new_device_LongAddr  = 0;
+String NewDevName = "";
+int counter = 0;
+bool EpResponse = false;
+bool ClResponse = false;
+bool DnResponse = false;
+byte rxMessageData_newDevice[100];
+byte ClDataNewDevice[100];
+String NewDevComplete = "";
+//---------------------------------------
 uint64_t au64ExtAddr[16];
 byte rxMessageData[1024];
 byte rxMessageChecksum = 0;
@@ -74,8 +86,7 @@ void serialEvent() {
     }
     else if (rxByte == 0x03)
     {
-    displayDecodedCommand(rxMessageType, rxMessageLength, rxMessageData);
-
+      displayDecodedCommand(rxMessageType, rxMessageLength, rxMessageData);
     }
     else
     {
@@ -136,6 +147,7 @@ void serialEvent() {
 }
 
 void TaskDecode( void *pvParameters );
+void TaskGetFullInfo( void *pvParameters );
 
 //Web server serup
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
@@ -223,7 +235,7 @@ void setup() {
   // Wifi Section
   WiFiManager wm;
   //wm.resetSettings();
-  
+
   wm.setAPCallback(configModeCallback);
   // id/name, placeholder/prompt, default, length
   if (!wm.autoConnect("ZigBeeGW")) {
@@ -267,9 +279,18 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskDecode
     ,  "TaskDecodeUart"
-    ,  32768
+    ,  16384
     ,  NULL
     ,  2
+    ,  NULL
+    ,  ARDUINO_RUNNING_CORE);
+
+  xTaskCreatePinnedToCore(
+    TaskGetFullInfo
+    ,  "GetFullInfoFromConnectedDevice"
+    ,  32768
+    ,  NULL
+    ,  1
     ,  NULL
     ,  ARDUINO_RUNNING_CORE);
 
@@ -303,6 +324,8 @@ void setup() {
   delay(50);
   transmitCommand(0x0017, 0, 0);
   delay(50);
+  //sendReadAttribRequest(0x5465, 1, 1 , 0 , 0, 0, 0, 1, 0x0005);
+  //void sendReadAttribRequest(uint16_t u16ShortAddr, byte u8SrcEndPoint, byte u8DstEndPoint, uint16_t u16ClusterID, byte u8Direction, byte u8ManuSpecific, uint16_t u16ManuID, byte u8AttribCount, uint16_t u16AttribID1)
 }
 
 void ShowOled()
@@ -328,7 +351,7 @@ void loop() {
   //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
   ShowOled();
   delay(1000);
-  ///sendClusterOnOff(2,0x5465,1,1,2);
+  //sendClusterOnOff(2,0x5465,1,1,2);
 }
 
 /*--------------------------------------------------*/
@@ -342,6 +365,76 @@ void TaskDecode(void *pvParameters)  // This is a task.
   for (;;) // A Task shall never return or exit.
   {
     serialEvent();
+    vTaskDelay(10);  // one tick delay (15ms) in between reads for stability
+  }
+}
+
+
+void TaskGetFullInfo(void *pvParameters)  // This is a task.
+{
+  (void) pvParameters;
+
+  for (;;) // A Task shall never return or exit.
+  {
+    if (new_device_connected) {
+      new_device_connected = false;
+      NewDevComplete = "";
+      activeEndpointDescriptorRequest(new_device_ShortAddr);
+      counter = 500;
+      while (!EpResponse) {
+        delay(1);
+        if (counter-- == 0) {
+          break;
+        }
+      }
+      sendReadAttribRequest(new_device_ShortAddr, 1, rxMessageData_newDevice[1] , 0 , 0, 0, 0, 1, 0x0005);
+      counter = 500;
+      while (!DnResponse) {
+        delay(1);
+        if (counter-- == 0) {
+          break;
+        }
+      }
+      NewDevComplete += "{ ";
+      NewDevComplete += NewDevName + " ; ";
+      NewDevComplete += "0x" + String(new_device_ShortAddr, HEX) + " ; ";
+      for (int i = 0; i < rxMessageData_newDevice[0]; i++)
+      {
+        NewDevComplete += "Ep";
+        NewDevComplete += String(i, DEC) + ":";
+        NewDevComplete += String(rxMessageData_newDevice[i + 1], HEX) + " ; ";
+        simpleDescriptorRequest(new_device_ShortAddr, rxMessageData_newDevice[i + 1]);
+        counter = 500;
+        while (!ClResponse) {
+          delay(1);
+          if (counter-- == 0) {
+            break;
+          }
+        }
+        ///Get clusters
+        byte u8Length = 0;
+        u8Length = ClDataNewDevice[0];
+        if (u8Length > 0)
+        {
+          byte u8InputClusterCount = 0;
+          u8InputClusterCount = ClDataNewDevice[7];
+          NewDevComplete += "Clusters ";
+          for (int i = 0; i < u8InputClusterCount; i++)
+          {
+            uint16_t u16ClusterId = 0;
+            u16ClusterId = ClDataNewDevice[(i * 2) + 8];
+            u16ClusterId <<= 8;
+            u16ClusterId |= ClDataNewDevice[(i * 2) + 9];
+            NewDevComplete += ": 0x" + String(u16ClusterId, HEX);
+          }
+        }
+      }
+      NewDevComplete += " }";
+      Serial.println(NewDevComplete);
+      EpResponse = false; DnResponse = false; ClResponse = false;
+      memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
+      memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
+    }
     vTaskDelay(10);  // one tick delay (15ms) in between reads for stability
   }
 }
