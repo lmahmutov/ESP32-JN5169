@@ -63,6 +63,30 @@ void transmitCommand(int iCommand, int iLength, byte data[])
   writeByte(specialCharacter[0]);
 }
 
+void sendReadAttribRequest(uint16_t u16ShortAddr, byte u8SrcEndPoint, byte u8DstEndPoint, uint16_t u16ClusterID, byte u8Direction, byte u8ManuSpecific, uint16_t u16ManuID, byte u8AttribCount, uint16_t u16AttribID1)
+        {
+            byte commandData[14];
+            byte u8Len = 0;
+
+            // Build command payload   
+            commandData[u8Len++]  = 0x02; // Short address mode
+            commandData[u8Len++] = (byte)(u16ShortAddr >> 8);
+            commandData[u8Len++] = (byte)u16ShortAddr;
+            commandData[u8Len++] = u8SrcEndPoint;
+            commandData[u8Len++] = u8DstEndPoint;
+            commandData[u8Len++] = (byte)(u16ClusterID >> 8);
+            commandData[u8Len++] = (byte)u16ClusterID;
+            commandData[u8Len++] = u8Direction;
+            commandData[u8Len++] = u8ManuSpecific;
+            commandData[u8Len++] = (byte)(u16ManuID >> 8);
+            commandData[u8Len++] = (byte)u16ManuID;
+            commandData[u8Len++] = u8AttribCount;
+            commandData[u8Len++] = (byte)(u16AttribID1 >> 8);
+            commandData[u8Len++] = (byte)u16AttribID1;
+
+            // Transmit command
+            transmitCommand(0x0100, u8Len, commandData);
+        }
 
 void setPermitJoin(uint16_t u16ShortAddr, byte u8Interval, byte u8TCsignificance)
 {
