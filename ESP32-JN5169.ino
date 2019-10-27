@@ -44,6 +44,7 @@ String print_string = "";
 String attr_response = "";
 // ------task get full info -----
 bool new_device_connected = false;
+bool connectGood = true;
 uint16_t new_device_ShortAddr = 0;
 uint64_t new_device_LongAddr  = 0;
 String NewDevName = "";
@@ -335,7 +336,7 @@ void setup() {
 void ShowOled()
 {
   UpdateLocalTime();
-  #ifdef UseOled
+#ifdef UseOled
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -350,14 +351,14 @@ void ShowOled()
   display.setCursor(0, 50);
   display.println(timeStringBuff);
   display.display();
-  #endif
+#endif
 }
 
 void loop() {
   //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
-  #ifdef UseOled
+#ifdef UseOled
   ShowOled();
-  #endif
+#endif
   delay(1000);
   //sendClusterOnOff(2,0x5465,1,1,2);
 }
@@ -397,6 +398,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
       while (!EpResponse) {          // ждем ответа 0x8045 (копируем данные в новый массив, и флаг ставим true)
         delay(1);
         if (counter-- == 0) {
+          connectGood = false;
           break;
         }
       }                             // получили ответ или закончилось время
@@ -407,6 +409,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
       while (!DnResponse) {         // ждем ответа 0x8102 (почему то ответчает атрибут репорт.... имя ложим в переменную NewDevName)
         delay(1);
         if (counter-- == 0) {
+          connectGood = false;
           break;
         }
       }
@@ -425,6 +428,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         while (!ClResponse) {
           delay(1);
           if (counter-- == 0) {
+            connectGood = false;
             break;
           }
         }
@@ -448,8 +452,12 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
       }
       NewDevComplete += " }";
+      if (connectGood == false)
+      {
+        NewDevComplete = "!!!!!!Add device fail, please try again!!!!!!"
+      }
       Serial.println(NewDevComplete);
-      EpResponse = false; DnResponse = false; ClResponse = false;
+      connectGood == true; EpResponse = false; DnResponse = false; ClResponse = false;
       memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
       memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
     }
