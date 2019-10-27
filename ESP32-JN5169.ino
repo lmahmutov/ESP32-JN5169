@@ -42,6 +42,7 @@ char timeStringBuff[50]; //50 chars should be enough
 //---------------------------------------
 String print_string = "";
 String attr_response = "";
+uint32_t timestamp = 0;
 // ------task get full info -----
 bool new_device_connected = false;
 bool connectGood = true;
@@ -219,6 +220,17 @@ void UpdateLocalTime()
   strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S", &timeinfo);
 }
 
+uint32_t getTime() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return (0);
+  }
+  time(&now);
+  return now;
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Start");
@@ -327,7 +339,7 @@ void setup() {
   delay(50);
   transmitCommand(0x0014, 0, 0);
   delay(50);
-  setTime(1572210591);
+  setTime(getTime());
   delay(50);
   transmitCommand(0x0017, 0, 0);
   delay(50);
