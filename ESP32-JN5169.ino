@@ -454,10 +454,10 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
       NewDevComplete += " }";
       if (connectGood == false)
       {
-        NewDevComplete = "!!!!!!Add device fail, please try again!!!!!!"
+        NewDevComplete = "!!!!!!Add device fail, please try again!!!!!!";
       }
       Serial.println(NewDevComplete);
-      connectGood == true; EpResponse = false; DnResponse = false; ClResponse = false;
+      connectGood = true; EpResponse = false; DnResponse = false; ClResponse = false;
       memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
       memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
     }
