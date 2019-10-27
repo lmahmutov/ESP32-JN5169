@@ -49,22 +49,26 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
       switch (u8AttribType)
       {
         case 0x42:
-          //attr_response += " (Character String)";
-          // attr_response += "\n";
-          NewDevName = "";
-          attr_response += "  Attribute Data (Len - " + String(u16AttrSize) + "): ";
-          for (int i = 0; i < u16AttrSize; i++)
-          {
-            char c = (char)au8AttribData[u8AttribIndex + i];
-            attr_response += c;
-            if (u16AttribId == 0x0005) {
+          if (u16AttribId == 0x0005) {
+            NewDevName = "";
+            attr_response += "  Attribute Data (Len - " + String(u16AttrSize) + "): ";
+            for (int i = 0; i < u16AttrSize; i++)
+            {
+              char c = (char)au8AttribData[u8AttribIndex + i];
+              attr_response += c;
               NewDevName += c;
             }
-          }
-          if (u16AttribId == 0x0005) {
             DnResponse = true;
           }
-          //attr_response += "\n";
+          else {
+           // for (int i = 0 ; i < u16AttrSize; i++) 
+           // {
+           //   attr_response += Hex([u8AttribIndex + i]);
+           // }
+          }
+          break;
+        default:
+
           break;
       }
       break;

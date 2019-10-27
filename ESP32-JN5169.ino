@@ -3,6 +3,9 @@
 #else
 #define ARDUINO_RUNNING_CORE 1
 #endif
+
+#define UseOled // Есть или нет Экран
+
 #include <FS.h>
 #include "time.h"
 #include "SPIFFS.h"
@@ -11,16 +14,17 @@
 #include "HardwareSerial.h"
 HardwareSerial jnSerial(2);
 
+#ifdef UseOled
 //OLED Section
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+#endif
 
 //Web server
 AsyncWebServer server(80);
@@ -183,6 +187,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   Serial.println(WiFi.softAPIP());
   //if you used auto generated SSID, print it
   Serial.println(myWiFiManager->getConfigPortalSSID());
+#ifdef UseOled
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -199,6 +204,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   display.setCursor(20, 50);
   display.println(F("and Setup WiFi"));
   display.display();
+#endif
 }
 
 void UpdateLocalTime()
@@ -210,9 +216,6 @@ void UpdateLocalTime()
   }
   strftime(dateStringBuff, sizeof(dateStringBuff), "%A, %B %d %Y", &timeinfo);
   strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S", &timeinfo);
-  //Serial.println(dateStringBuff);
-  //Serial.println(timeStringBuff);
-
 }
 
 void setup() {
@@ -225,13 +228,14 @@ void setup() {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
-
+#ifdef UseOled
   //OLED
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
     for (;;); // Don't proceed, loop forever
   }
+#endif
   // Wifi Section
   WiFiManager wm;
   //wm.resetSettings();
@@ -247,7 +251,7 @@ void setup() {
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   UpdateLocalTime();
-
+#ifdef UseOled
   //Oled Show WIFI
   display.clearDisplay();
   display.setTextSize(1);
@@ -263,7 +267,7 @@ void setup() {
   display.setCursor(20, 45);
   display.println(WiFi.localIP());
   display.display();
-
+#endif
   //Web Server setup
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
@@ -331,6 +335,7 @@ void setup() {
 void ShowOled()
 {
   UpdateLocalTime();
+  #ifdef UseOled
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -345,11 +350,14 @@ void ShowOled()
   display.setCursor(0, 50);
   display.println(timeStringBuff);
   display.display();
+  #endif
 }
 
 void loop() {
   //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
+  #ifdef UseOled
   ShowOled();
+  #endif
   delay(1000);
   //sendClusterOnOff(2,0x5465,1,1,2);
 }
@@ -377,7 +385,12 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
   for (;;) // A Task shall never return or exit.
   {
     if (new_device_connected) {
-      new_device_connected = false;  // получаем флаг что девайс подключился
+      new_device_connected = false;  // получаем флаг что девайс подключился, и сразу его сбросим
+      // тут изврат, хз как красивее, делаем читабельным видом длинный адресс
+      unsigned long long1 = (unsigned long)((new_device_LongAddr & 0xFFFF0000) >> 16 );
+      unsigned long long2 = (unsigned long)((new_device_LongAddr & 0x0000FFFF));
+      String u64Longhex = String(long1, HEX) + String(long2, HEX);
+      // дальше начнем обработку
       NewDevComplete = "";           // очищаем стринг вывода
       activeEndpointDescriptorRequest(new_device_ShortAddr); // посылаем в сеть запрос эндпоинтов (0x0045)
       counter = 5000;                // задерка на 5 сек
@@ -386,7 +399,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         if (counter-- == 0) {
           break;
         }
-      }                             // получили ответ или закончилось время 
+      }                             // получили ответ или закончилось время
       delay(50);                    // На всякий случай подождем, чтобы слишком быстро не слать команду
       //Эндпоинты получили, пытаемся узнать имя железки
       sendReadAttribRequest(new_device_ShortAddr, 1, rxMessageData_newDevice[1] , 0 , 0, 0, 0, 1, 0x0005); // Запрос атрибута как зовут железку
@@ -399,7 +412,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
       }
       delay(50);                   //На всякий случай подождем, чтобы слишком быстро не слать команду
       //
-      NewDevComplete += "{ ";
+      NewDevComplete += "{ " + u64Longhex + ": ";
       NewDevComplete += NewDevName + " ; ";
       NewDevComplete += "0x" + String(new_device_ShortAddr, HEX) + " ; ";
       for (int i = 0; i < rxMessageData_newDevice[0]; i++)
