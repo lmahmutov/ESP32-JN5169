@@ -199,6 +199,20 @@ void setChannelMask(uint32_t uiMask)
   transmitCommand(0x0021, 4, commandData);
 }
 
+void setTime(uint32_t timestamp)
+{
+  byte commandData[4];
+
+  // Build command payload
+  commandData[0] = (byte)(timestamp >> 24);
+  commandData[1] = (byte)(timestamp >> 16);
+  commandData[2] = (byte)(timestamp >> 8);
+  commandData[3] = (byte)timestamp;
+
+  // Transmit command
+  transmitCommand(0x0016, 4, commandData);
+}
+
 void setDeviceType(byte deviceType)  // 0 - Coordinator, 1 - router, 2 end device
 {
   byte commandData[1];

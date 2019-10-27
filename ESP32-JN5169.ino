@@ -323,9 +323,11 @@ void setup() {
   delay(50);
   sendMgmtLqiRequest(0x0617, 0);
   delay(50);
-  setPermitJoin(0x0000, 0xFE, 0x00);
+  setPermitJoin(0x0000, 0x1E, 0x00);
   delay(50);
   transmitCommand(0x0014, 0, 0);
+  delay(50);
+  setTime(1572210591);
   delay(50);
   transmitCommand(0x0017, 0, 0);
   delay(50);

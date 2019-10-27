@@ -4,6 +4,7 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
   attr_response += "{Date Time: ";
   attr_response += timeStringBuff;
   attr_response += "{SQN: 0x" + String(SQN, DEC);
+  attr_response += ";ShortAddr: 0x" + String(u16SrcAddr, HEX);
   attr_response += ";Cluster ID: 0x" + String(u16ClusterId, HEX);
   attr_response += ";Attribute ID: 0x" + String(u16AttribId, HEX);
   //attr_response += "\n";
@@ -61,10 +62,10 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
             DnResponse = true;
           }
           else {
-           // for (int i = 0 ; i < u16AttrSize; i++) 
-           // {
-           //   attr_response += Hex([u8AttribIndex + i]);
-           // }
+            // for (int i = 0 ; i < u16AttrSize; i++)
+            // {
+            //   attr_response += Hex([u8AttribIndex + i]);
+            // }
           }
           break;
         default:
