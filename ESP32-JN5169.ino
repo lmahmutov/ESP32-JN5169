@@ -377,24 +377,28 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
   for (;;) // A Task shall never return or exit.
   {
     if (new_device_connected) {
-      new_device_connected = false;
-      NewDevComplete = "";
-      activeEndpointDescriptorRequest(new_device_ShortAddr);
-      counter = 500;
-      while (!EpResponse) {
+      new_device_connected = false;  // получаем флаг что девайс подключился
+      NewDevComplete = "";           // очищаем стринг вывода
+      activeEndpointDescriptorRequest(new_device_ShortAddr); // посылаем в сеть запрос эндпоинтов (0x0045)
+      counter = 5000;                // задерка на 5 сек
+      while (!EpResponse) {          // ждем ответа 0x8045 (копируем данные в новый массив, и флаг ставим true)
+        delay(1);
+        if (counter-- == 0) {
+          break;
+        }
+      }                             // получили ответ или закончилось время 
+      delay(50);                    // На всякий случай подождем, чтобы слишком быстро не слать команду
+      //Эндпоинты получили, пытаемся узнать имя железки
+      sendReadAttribRequest(new_device_ShortAddr, 1, rxMessageData_newDevice[1] , 0 , 0, 0, 0, 1, 0x0005); // Запрос атрибута как зовут железку
+      counter = 5000;               // задержка 5 сек
+      while (!DnResponse) {         // ждем ответа 0x8102 (почему то ответчает атрибут репорт.... имя ложим в переменную NewDevName)
         delay(1);
         if (counter-- == 0) {
           break;
         }
       }
-      sendReadAttribRequest(new_device_ShortAddr, 1, rxMessageData_newDevice[1] , 0 , 0, 0, 0, 1, 0x0005);
-      counter = 500;
-      while (!DnResponse) {
-        delay(1);
-        if (counter-- == 0) {
-          break;
-        }
-      }
+      delay(50);                   //На всякий случай подождем, чтобы слишком быстро не слать команду
+      //
       NewDevComplete += "{ ";
       NewDevComplete += NewDevName + " ; ";
       NewDevComplete += "0x" + String(new_device_ShortAddr, HEX) + " ; ";
@@ -404,7 +408,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         NewDevComplete += String(i, DEC) + ":";
         NewDevComplete += String(rxMessageData_newDevice[i + 1], HEX) + " ; ";
         simpleDescriptorRequest(new_device_ShortAddr, rxMessageData_newDevice[i + 1]);
-        counter = 500;
+        counter = 5000;
         while (!ClResponse) {
           delay(1);
           if (counter-- == 0) {
@@ -428,6 +432,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
             NewDevComplete += ": 0x" + String(u16ClusterId, HEX);
           }
         }
+        delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
       }
       NewDevComplete += " }";
       Serial.println(NewDevComplete);
