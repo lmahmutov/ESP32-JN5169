@@ -247,8 +247,8 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
   attr_response += "}";
   Serial.print(attr_response);
 
-  if (globalClient != NULL && globalClient->status() == WS_CONNECTED) {
-    globalClient->text(attr_response);
-  }
+ // if (globalClient != NULL && globalClient->status() == WS_CONNECTED) {
+ //   globalClient->text(attr_response);
+ // }
   attr_response = "";
 }

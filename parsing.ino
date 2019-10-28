@@ -3,8 +3,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
   if ( (u16Type != 0x8011 && u16Type != 0x8012))
   {
-    print_string += "Type: 0x";
-    print_string += String(u16Type, HEX);
+    print_string += "Type: ";
+    print_string += u16toStr(u16Type);
     print_string += "\n";
   }
 
@@ -16,10 +16,10 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += " (Status)";
         print_string += "\n";
         print_string += "  Length: ";
-        print_string += String(u16Length, HEX);
+        print_string += u16toStr(u16Length);
         print_string += "\n";
-        print_string += "  Status: 0x";
-        print_string += String(au8Data[0], HEX);
+        print_string += "  Status: ";
+        print_string += u8toStr(au8Data[0]);
 
         switch (au8Data[0])
         {
@@ -381,17 +381,17 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Network State Response)";
         print_string += "\n";
-        print_string += "  Short Address: 0x";
-        print_string += String(u16ShortAddr, HEX);
+        print_string += "  Short Address: ";
+        print_string += u16toStr(u16ShortAddr);
         print_string += "\n";
-        print_string += "  Extended Address: 0x";
-        print_string += String(long(u64ExtendedAddr), HEX);
+        print_string += "  Extended Address: ";
+        print_string += u64toStr(u64ExtendedAddr);
         print_string += "\n";
         print_string += "  PAN ID: ";
-        print_string += String(u16PanId, HEX);
+        print_string += u16toStr(u16PanId);
         print_string += "\n";
-        print_string += "  Ext PAN ID: 0x";
-        print_string += String(long(u64ExtendedPANID), HEX);
+        print_string += "  Ext PAN ID: ";
+        print_string += u64toStr(u64ExtendedPANID);
         print_string += "\n";
         print_string += "  Channel: ";
         print_string += String(au8Data[20], DEC);
@@ -412,17 +412,16 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         u16Installer <<= 8;
         u16Installer |= au8Data[3];
 
-        unsigned long long1 = u16Installer;
         print_string += " (Version)";
         print_string += "\n";
         print_string += "  Length: ";
-        print_string += u16Length;
+        print_string += u16toStr(u16Length);
         print_string += "\n";
         print_string += "  Application: ";
-        print_string +=  u16Major;
+        print_string +=  u16toStr(u16Major);
         print_string += "\n";
         print_string += "  SDK: ";
-        print_string +=  String(long1, HEX);
+        print_string +=  u16toStr(u16Installer);
         print_string += "\n";
       }
       break;
@@ -444,11 +443,11 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Network Up)";
         print_string += "\n";
-        print_string += "  Status: 0x" + String(au8Data[0]);
+        print_string += "  Status: " + u8toStr(au8Data[0]);
         print_string += "\n";
-        print_string += "  Short Address: 0x" + String(u16ShortAddr);
+        print_string += "  Short Address: " + u16toStr(u16ShortAddr);
         print_string += "\n";
-        print_string += "  Extended Address: 0x" + String(long(u64ExtAddr));
+        print_string += "  Extended Address: " + u64toStr(u64ExtAddr);
         print_string += "\n";
         print_string += "  Channel: " + String(au8Data[11], DEC);
         print_string += "\n";
@@ -685,6 +684,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8042:
       {
+        /*
         uint16_t u16ShortAddr = 0;
         uint16_t u16ManufacturerCode = 0;
         uint16_t u16RxSize = 0;
@@ -745,6 +745,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += "\n";
         print_string += "  Bit Fields: 0x" + u16BitFields;
         print_string += "\n";
+        */
       }
       break;
 
@@ -996,15 +997,15 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
         print_string += " (Mgmt LQI Response)";
         print_string += "\n";
-        print_string += "  SQN: 0x" + String(au8Data[0], HEX);
+        print_string += "  SQN: " + u8toStr(au8Data[0]);
         print_string += "\n";
-        print_string += "  Status: 0x" + String(au8Data[1], HEX);
+        print_string += "  Status: " + u8toStr(au8Data[1]);
         print_string += "\n";
-        print_string += "  Nb Table Entries: " + String(u8NbTableEntries, HEX);
+        print_string += "  Nb Table Entries: " + u8toStr(u8NbTableEntries);
         print_string += "\n";
-        print_string += "  Start Index: " + String(u8StartIx, HEX);
+        print_string += "  Start Index: " + u8toStr(u8StartIx);
         print_string += "\n";
-        print_string += "  Nb Table List Count: " + String(u8NbTableListCount, HEX);
+        print_string += "  Nb Table List Count: " + u8toStr(u8NbTableListCount);
         print_string += "\n";
 
         ////comboBoxAddressList.Items.Clear();
@@ -1054,11 +1055,11 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
             print_string += "  Neighbor " + i;
             print_string += ":";
             print_string += "\n";
-            print_string += "    Extended Pan ID: 0x" + String(long(u64PanID), HEX);
+            print_string += "    Extended Pan ID: " + u64toStr(u64PanID);
             print_string += "\n";
-            print_string += "    Extended Address: 0x" + String(long(u64ExtAddr), HEX);
+            print_string += "    Extended Address: " + u64toStr(u64ExtAddr);
             print_string += "\n";
-            print_string += "    Nwk Address: 0x" + String(u16NwkAddr, HEX);
+            print_string += "    Nwk Address: " + u16toStr(u16NwkAddr);
             print_string += "\n";
             print_string += "    LQI: " + String(u8Lqi, DEC);
             print_string += "\n";

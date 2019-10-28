@@ -42,7 +42,7 @@ char timeStringBuff[50]; //50 chars should be enough
 //---------------------------------------
 String print_string = "";
 String attr_response = "";
-uint32_t timestamp = 0;
+bool oledidle = true;
 // ------task get full info -----
 bool new_device_connected = false;
 bool connectGood = true;
@@ -154,6 +154,9 @@ void serialEvent() {
 
 void TaskDecode( void *pvParameters );
 void TaskGetFullInfo( void *pvParameters );
+#ifdef UseOled
+void TaskUpdateOled( void *pvParameters );
+#endif
 
 //Web server serup
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
@@ -216,7 +219,7 @@ void UpdateLocalTime()
     Serial.println("Failed to obtain time");
     return;
   }
-  strftime(dateStringBuff, sizeof(dateStringBuff), "%A, %B %d %Y", &timeinfo);
+  strftime(dateStringBuff, sizeof(dateStringBuff), "%d %B %Y", &timeinfo); //"%A, %B %d %Y"
   strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S", &timeinfo);
 }
 
@@ -296,7 +299,7 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskDecode
     ,  "TaskDecodeUart"
-    ,  16384
+    ,  32768
     ,  NULL
     ,  2
     ,  NULL
@@ -305,11 +308,22 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskGetFullInfo
     ,  "GetFullInfoFromConnectedDevice"
-    ,  32768
+    ,  8192
     ,  NULL
     ,  1
     ,  NULL
     ,  ARDUINO_RUNNING_CORE);
+
+#ifdef UseOled
+  xTaskCreatePinnedToCore(
+    TaskUpdateOled
+    ,  "Show IP and Time on Oled"
+    ,  1024
+    ,  NULL
+    ,  1
+    ,  NULL
+    ,  ARDUINO_RUNNING_CORE);
+#endif
 
   //Hard RESET
   //transmitCommand(0x0012, 0, 0);
@@ -333,9 +347,9 @@ void setup() {
   delay(50);
   DiscoverDevices();
   delay(50);
-  sendMgmtLqiRequest(0x0617, 0);
-  delay(50);
-  setPermitJoin(0x0000, 0x1E, 0x00);
+  //sendMgmtLqiRequest(0x2FE8, 0);
+  //delay(50);
+  setPermitJoin(0xFFFC, 0x1E, 0x00);
   delay(50);
   transmitCommand(0x0014, 0, 0);
   delay(50);
@@ -347,32 +361,32 @@ void setup() {
   //void sendReadAttribRequest(uint16_t u16ShortAddr, byte u8SrcEndPoint, byte u8DstEndPoint, uint16_t u16ClusterID, byte u8Direction, byte u8ManuSpecific, uint16_t u16ManuID, byte u8AttribCount, uint16_t u16AttribID1)
 }
 
-void ShowOled()
+void OledTimeIP()
 {
   UpdateLocalTime();
 #ifdef UseOled
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
+  display.setCursor(5, 0);
   display.println(F("Zigbee Gateway v0.1"));
-  display.setCursor(0, 15);
+  display.setCursor(10, 12);
   display.println(F("IP:"));
-  display.setCursor(20, 15);
+  display.setCursor(40, 12);
   display.println(WiFi.localIP());
-  display.setCursor(0, 30);
+  display.setCursor(20, 24);
   display.println(dateStringBuff);
-  display.setCursor(0, 50);
+  display.setCursor(44, 36);
   display.println(timeStringBuff);
+  display.setCursor(10, 48);
+  String freeRam = String(ESP.getFreeHeap(), DEC);
+  display.println("Free RAM : " + freeRam);
   display.display();
 #endif
 }
 
 void loop() {
-  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
-#ifdef UseOled
-  ShowOled();
-#endif
+  //transmitCommand(0x0017, 0, 0);
   delay(1000);
   //sendClusterOnOff(2,0x5465,1,1,2);
 }
@@ -401,10 +415,6 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
   {
     if (new_device_connected) {
       new_device_connected = false;  // получаем флаг что девайс подключился, и сразу его сбросим
-      // тут изврат, хз как красивее, делаем читабельным видом длинный адресс
-      unsigned long long1 = (unsigned long)((new_device_LongAddr & 0xFFFF0000) >> 16 );
-      unsigned long long2 = (unsigned long)((new_device_LongAddr & 0x0000FFFF));
-      String u64Longhex = String(long1, HEX) + String(long2, HEX);
       // дальше начнем обработку
       NewDevComplete = "";           // очищаем стринг вывода
       activeEndpointDescriptorRequest(new_device_ShortAddr); // посылаем в сеть запрос эндпоинтов (0x0045)
@@ -429,14 +439,14 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
       }
       delay(50);                   //На всякий случай подождем, чтобы слишком быстро не слать команду
       //
-      NewDevComplete += "{ " + u64Longhex + ": ";
+      NewDevComplete += "{" + u64toStr(new_device_LongAddr) + ": ";
       NewDevComplete += NewDevName + " ; ";
-      NewDevComplete += "0x" + String(new_device_ShortAddr, HEX) + " ; ";
+      NewDevComplete += u16toStr(new_device_ShortAddr) + " ; ";
       for (int i = 0; i < rxMessageData_newDevice[0]; i++)
       {
-        NewDevComplete += "Ep";
+        NewDevComplete += " Ep";
         NewDevComplete += String(i, DEC) + ":";
-        NewDevComplete += String(rxMessageData_newDevice[i + 1], HEX) + " ; ";
+        NewDevComplete += String(rxMessageData_newDevice[i + 1], DEC) + " ; ";
         simpleDescriptorRequest(new_device_ShortAddr, rxMessageData_newDevice[i + 1]);
         counter = 5000;
         while (!ClResponse) {
@@ -460,7 +470,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
             u16ClusterId = ClDataNewDevice[(i * 2) + 8];
             u16ClusterId <<= 8;
             u16ClusterId |= ClDataNewDevice[(i * 2) + 9];
-            NewDevComplete += ": 0x" + String(u16ClusterId, HEX);
+            NewDevComplete += ": " + u16toStr(u16ClusterId);
           }
         }
         delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
@@ -471,10 +481,27 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         NewDevComplete = "!!!!!!Add device fail, please try again!!!!!!";
       }
       Serial.println(NewDevComplete);
+      if (connectGood == true && globalClient != NULL && globalClient->status() == WS_CONNECTED) {
+        globalClient->text(NewDevComplete);
+      }
       connectGood = true; EpResponse = false; DnResponse = false; ClResponse = false;
       memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
       memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
     }
     vTaskDelay(10);  // one tick delay (15ms) in between reads for stability
+  }
+}
+
+void TaskUpdateOled(void *pvParameters)  // This is a task.
+{
+  (void) pvParameters;
+
+  for (;;) // A Task shall never return or exit.
+  {
+    if (oledidle)
+    {
+      OledTimeIP();
+    }
+    vTaskDelay(1000);  // one tick delay (15ms) in between reads for stability
   }
 }
