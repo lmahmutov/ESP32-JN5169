@@ -1,17 +1,65 @@
 String u64toStr(uint64_t u64Input)
 {
-  char tmp1[16];
-  char tmp2[16];
-  sprintf(tmp1, "0x%.4X", (u64Input & 0xFFFF0000) >> 16);
-  sprintf(tmp2, "%.4X", (u64Input & 0x0000FFFF));
-  Serial.print("TMP1"); Serial.println(String(tmp1));
-  String u64Strhex = String(tmp1) + String(tmp2);
-  /*
-    unsigned long long1 = (unsigned long)((u64Input & 0xFFFF0000) >> 16 );
-    unsigned long long2 = (unsigned long)((u64Input & 0x0000FFFF));
-    String u64Strhex ="0x" + String(long1, HEX) + String(long2, HEX);
-  */
-  return u64Strhex;
+  String result = "";//
+  uint8_t base = 16; //hex 10 dec
+
+  do {
+    char c = input % base; input /= base;
+    if (c < 10) {
+      c += '0';
+    } else {
+      c += 'A' - 10;
+    }
+    result = c + result;
+  } while (input);
+  switch (result.length()) {
+    case 1: {
+        result = "000000000000000" + result;
+      } break;
+    case 2: {
+        result = "00000000000000" + result;
+      } break;
+    case 3: {
+        result = "0000000000000" + result;
+      } break;
+    case 4: {
+        result = "000000000000" + result;
+      } break;
+    case 5: {
+        result = "00000000000" + result;
+      } break;
+    case 6: {
+        result = "0000000000" + result;
+      } break;
+    case 7: {
+        result = "000000000" + result;
+      } break;
+    case 8: {
+        result = "00000000" + result;
+      } break;
+    case 9: {
+        result = "0000000" + result;
+      } break;
+    case 10: {
+        result = "000000" + result;
+      } break;
+    case 11: {
+        result = "00000" + result;
+      } break;
+    case 12: {
+        result = "0000" + result;
+      } break;
+    case 13: {
+        result = "000" + result;
+      } break;
+    case 14: {
+        result = "00" + result;
+      } break;
+    case 15: {
+        result = "0" + result;
+      } break;
+  }
+  return result;
 }
 
 String u16toStr(uint16_t u16Input)

@@ -12,6 +12,7 @@
 #include <sqlite3.h>
 #include <WiFiManager.h>
 #include <ESPAsyncWebServer.h>
+#include <WebSocketsServer.h>
 #include "HardwareSerial.h"
 HardwareSerial jnSerial(2);
 
@@ -29,8 +30,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 //Web server
 AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-AsyncWebSocketClient * globalClient = NULL;
+WebSocketsServer webSocket = WebSocketsServer(81);
 const char* PARAM_MESSAGE = "message";
 //---------------------------------
 //SQlite
@@ -61,8 +61,8 @@ int counter = 0;
 bool EpResponse = false;
 bool ClResponse = false;
 bool DnResponse = false;
-byte rxMessageData_newDevice[100];
-byte ClDataNewDevice[100];
+byte rxMessageData_newDevice[1000];
+byte ClDataNewDevice[1000];
 String NewDevComplete = "";
 //---------------------------------------
 uint64_t au64ExtAddr[16];
@@ -162,29 +162,6 @@ void serialEvent() {
 
 void TaskDecode( void *pvParameters );
 void TaskGetFullInfo( void *pvParameters );
-#ifdef UseOled
-void TaskUpdateOled( void *pvParameters );
-#endif
-
-//Web server serup
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
-  if (type == WS_EVT_CONNECT) {
-    Serial.println("Websocket client connection received");
-    globalClient = client;
-  } else if (type == WS_EVT_DISCONNECT) {
-    Serial.println("Websocket client connection finished");
-    globalClient = NULL;
-  }
-  else if (type == WS_EVT_DATA) {
-    Serial.println("Data received: ");
-    for (int i = 0; i < len; i++) {
-      Serial.print(data[i]);
-      Serial.print("|");
-    }
-    Serial.println();
-  }
-}
-
 
 //gets called when WiFiManager enters configuration mode
 void configModeCallback (WiFiManager *myWiFiManager) {
@@ -272,7 +249,7 @@ void setup() {
   if (db_open("/spiffs/data.db", &db))
     return;
   //-------------------------------------------------------------------------
-  
+
 #ifdef UseOled
   //OLED
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -314,64 +291,21 @@ void setup() {
   display.display();
 #endif
   //Web Server setup
-  ws.onEvent(onWsEvent);
-  server.addHandler(&ws);
+  webSocket.onEvent(onWsEvent);
+  server.addHandler(&webSocket);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/ws.html", "text/html");
   });
   server.on ( "/devices", [](AsyncWebServerRequest * request) {
-    String sql = "select * from devices";
-    rc = sqlite3_prepare_v2(db, sql.c_str(), 1000, &res, &tail);
-    if (rc != SQLITE_OK) {
-      String resp = "Failed to fetch data: ";
-      resp += sqlite3_errmsg(db);
-      resp += "<br><br><a href='/'>back</a>";
-      request->send(200, "text/html", resp);
-      Serial.println(resp.c_str());
-      return;
-    }
-    rec_count = 0;
-    String resp = "<h2>List of connected devices:</h2><h3>";
-    resp += sql;
-    resp += "</h3><table cellspacing='1' cellpadding='1' border='1'>";
-    bool first = true;
-    while (sqlite3_step(res) == SQLITE_ROW) {
-      //resp = "";
-      if (first) {
-        int count = sqlite3_column_count(res);
-        if (count == 0) {
-          resp += "<tr><td>Statement executed successfully</td></tr>";
-          rec_count = sqlite3_changes(db);
-          break;
-        }
-        resp += "<tr>";
-        for (int i = 0; i < count; i++) {
-          resp += "<td>";
-          resp += sqlite3_column_name(res, i);
-          resp += "</td>";
-        }
-        resp += "</tr>";
-        first = false;
-      }
-      int count = sqlite3_column_count(res);
-      resp += "<tr>";
-      for (int i = 0; i < count; i++) {
-        resp += "<td>";
-        resp += (const char *) sqlite3_column_text(res, i);
-        resp += "</td>";
-      }
-      resp += "</tr>";
-      rec_count++;
-    }
-    resp += "</table><br><br>Number of records: ";
-    resp += rec_count;
-    resp += ".<br><br><input type=button onclick='location.href=\"/\"' value='back'/>";
-    request->send(200, "text/html", resp);
-    sqlite3_finalize(res);
+    devices();
   } );
+  server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(SPIFFS, "/favicon.ico", "text/html");
+  });
   server.begin();
   delay(1000);
+  webSocket.begin(); webSocket.onEvent(onWebSocketEvent); // Start WebSocket server and assign callback
 
   ////
   xTaskCreatePinnedToCore(
@@ -391,17 +325,6 @@ void setup() {
     ,  1
     ,  NULL
     ,  ARDUINO_RUNNING_CORE);
-
-#ifdef UseOled
-  xTaskCreatePinnedToCore(
-    TaskUpdateOled
-    ,  "Show IP and Time on Oled"
-    ,  10000
-    ,  NULL
-    ,  1
-    ,  NULL
-    ,  ARDUINO_RUNNING_CORE);
-#endif
 
   //Hard RESET
   //transmitCommand(0x0012, 0, 0);
@@ -466,6 +389,7 @@ void OledTimeIP()
 
 void loop() {
   //transmitCommand(0x0017, 0, 0);
+  OledTimeIP();
   delay(1000);
   //sendClusterOnOff(2,0x5465,1,1,2);
 }
@@ -550,7 +474,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
             u16ClusterId <<= 8;
             u16ClusterId |= ClDataNewDevice[(i * 2) + 9];
             NewDevComplete += ": " + u16toStr(u16ClusterId);
-           // sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
+            // sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
           }
         }
         delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
@@ -565,32 +489,18 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         globalClient->text(NewDevComplete);
       }
       if (connectGood == true) {
-        if(sqlite_select_answer(u64toStr(new_device_LongAddr)) == 0){
+        if (sqlite_select_answer(u64toStr(new_device_LongAddr)) == 0) {
           Serial.println("New device, insert to database");
           sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
         }
-        else{
+        else {
           Serial.println("Device in base");
         }
       }
-      connectGood = true; EpResponse = false; DnResponse = false; ClResponse = false; NewDevName= "";
+      connectGood = true; EpResponse = false; DnResponse = false; ClResponse = false; NewDevName = "";
       memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
       memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
     }
     vTaskDelay(10);  // one tick delay (15ms) in between reads for stability
-  }
-}
-
-void TaskUpdateOled(void *pvParameters)  // This is a task.
-{
-  (void) pvParameters;
-
-  for (;;) // A Task shall never return or exit.
-  {
-    if (oledidle)
-    {
-      OledTimeIP();
-    }
-    vTaskDelay(1000);  // one tick delay (15ms) in between reads for stability
   }
 }

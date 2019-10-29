@@ -751,7 +751,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8043:
       {
-        memcpy(ClDataNewDevice, &(au8Data[4]), 100);
+        memcpy(ClDataNewDevice, &(au8Data[4]), 1000);
         /*
           byte u8Length = 0;
           uint16_t u16ShortAddr = 0;
@@ -851,7 +851,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
     */
     case 0x8045:
       {
-        memcpy(rxMessageData_newDevice, &(au8Data[4]), 100);
+        memcpy(rxMessageData_newDevice, &(au8Data[4]), 1000);
         /*
           uint16_t u16ShortAddr = 0;
           u16ShortAddr = au8Data[2];
