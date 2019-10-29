@@ -9,6 +9,7 @@
 #include <FS.h>
 #include "time.h"
 #include "SPIFFS.h"
+#include <sqlite3.h>
 #include <WiFiManager.h>
 #include <ESPAsyncWebServer.h>
 #include "HardwareSerial.h"
@@ -32,6 +33,13 @@ AsyncWebSocket ws("/ws");
 AsyncWebSocketClient * globalClient = NULL;
 const char* PARAM_MESSAGE = "message";
 //---------------------------------
+//SQlite
+sqlite3 *db;
+int rc;
+sqlite3_stmt *res;
+int rec_count = 0;
+const char *tail;
+
 //NTP
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 7200;
@@ -160,27 +168,19 @@ void TaskUpdateOled( void *pvParameters );
 
 //Web server serup
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
-
   if (type == WS_EVT_CONNECT) {
-
     Serial.println("Websocket client connection received");
     globalClient = client;
-
   } else if (type == WS_EVT_DISCONNECT) {
-
     Serial.println("Websocket client connection finished");
     globalClient = NULL;
-
   }
   else if (type == WS_EVT_DATA) {
-
     Serial.println("Data received: ");
-
     for (int i = 0; i < len; i++) {
       Serial.print(data[i]);
       Serial.print("|");
     }
-
     Serial.println();
   }
 }
@@ -244,6 +244,35 @@ void setup() {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
+  //SQlite
+  File root = SPIFFS.open("/");
+  if (!root) {
+    Serial.println("- failed to open directory");
+    return;
+  }
+  if (!root.isDirectory()) {
+    Serial.println(" - not a directory");
+    return;
+  }
+  File file = root.openNextFile();
+  while (file) {
+    if (file.isDirectory()) {
+      Serial.print("  DIR : ");
+      Serial.println(file.name());
+    } else {
+      Serial.print("  FILE: ");
+      Serial.print(file.name());
+      Serial.print("\tSIZE: ");
+      Serial.println(file.size());
+    }
+    file = root.openNextFile();
+  }
+
+  sqlite3_initialize();
+  if (db_open("/spiffs/data.db", &db))
+    return;
+  //-------------------------------------------------------------------------
+  
 #ifdef UseOled
   //OLED
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -291,7 +320,56 @@ void setup() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/ws.html", "text/html");
   });
-
+  server.on ( "/devices", [](AsyncWebServerRequest * request) {
+    String sql = "select * from devices";
+    rc = sqlite3_prepare_v2(db, sql.c_str(), 1000, &res, &tail);
+    if (rc != SQLITE_OK) {
+      String resp = "Failed to fetch data: ";
+      resp += sqlite3_errmsg(db);
+      resp += "<br><br><a href='/'>back</a>";
+      request->send(200, "text/html", resp);
+      Serial.println(resp.c_str());
+      return;
+    }
+    rec_count = 0;
+    String resp = "<h2>List of connected devices:</h2><h3>";
+    resp += sql;
+    resp += "</h3><table cellspacing='1' cellpadding='1' border='1'>";
+    bool first = true;
+    while (sqlite3_step(res) == SQLITE_ROW) {
+      //resp = "";
+      if (first) {
+        int count = sqlite3_column_count(res);
+        if (count == 0) {
+          resp += "<tr><td>Statement executed successfully</td></tr>";
+          rec_count = sqlite3_changes(db);
+          break;
+        }
+        resp += "<tr>";
+        for (int i = 0; i < count; i++) {
+          resp += "<td>";
+          resp += sqlite3_column_name(res, i);
+          resp += "</td>";
+        }
+        resp += "</tr>";
+        first = false;
+      }
+      int count = sqlite3_column_count(res);
+      resp += "<tr>";
+      for (int i = 0; i < count; i++) {
+        resp += "<td>";
+        resp += (const char *) sqlite3_column_text(res, i);
+        resp += "</td>";
+      }
+      resp += "</tr>";
+      rec_count++;
+    }
+    resp += "</table><br><br>Number of records: ";
+    resp += rec_count;
+    resp += ".<br><br><input type=button onclick='location.href=\"/\"' value='back'/>";
+    request->send(200, "text/html", resp);
+    sqlite3_finalize(res);
+  } );
   server.begin();
   delay(1000);
 
@@ -308,7 +386,7 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskGetFullInfo
     ,  "GetFullInfoFromConnectedDevice"
-    ,  8192
+    ,  10000
     ,  NULL
     ,  1
     ,  NULL
@@ -318,7 +396,7 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskUpdateOled
     ,  "Show IP and Time on Oled"
-    ,  1024
+    ,  10000
     ,  NULL
     ,  1
     ,  NULL
@@ -359,6 +437,7 @@ void setup() {
   delay(50);
   //sendReadAttribRequest(0x5465, 1, 1 , 0 , 0, 0, 0, 1, 0x0005);
   //void sendReadAttribRequest(uint16_t u16ShortAddr, byte u8SrcEndPoint, byte u8DstEndPoint, uint16_t u16ClusterID, byte u8Direction, byte u8ManuSpecific, uint16_t u16ManuID, byte u8AttribCount, uint16_t u16AttribID1)
+  //sqlite_select_answer("0xf0c8fc06");
 }
 
 void OledTimeIP()
@@ -471,6 +550,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
             u16ClusterId <<= 8;
             u16ClusterId |= ClDataNewDevice[(i * 2) + 9];
             NewDevComplete += ": " + u16toStr(u16ClusterId);
+           // sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
           }
         }
         delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
@@ -484,7 +564,16 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
       if (connectGood == true && globalClient != NULL && globalClient->status() == WS_CONNECTED) {
         globalClient->text(NewDevComplete);
       }
-      connectGood = true; EpResponse = false; DnResponse = false; ClResponse = false;
+      if (connectGood == true) {
+        if(sqlite_select_answer(u64toStr(new_device_LongAddr)) == 0){
+          Serial.println("New device, insert to database");
+          sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
+        }
+        else{
+          Serial.println("Device in base");
+        }
+      }
+      connectGood = true; EpResponse = false; DnResponse = false; ClResponse = false; NewDevName= "";
       memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
       memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
     }

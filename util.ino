@@ -1,9 +1,17 @@
 String u64toStr(uint64_t u64Input)
 {
+  char tmp1[16];
+  char tmp2[16];
+  sprintf(tmp1, "0x%.4X", (u64Input & 0xFFFF0000) >> 16);
+  sprintf(tmp2, "%.4X", (u64Input & 0x0000FFFF));
+  Serial.print("TMP1"); Serial.println(String(tmp1));
+  String u64Strhex = String(tmp1) + String(tmp2);
+  /*
     unsigned long long1 = (unsigned long)((u64Input & 0xFFFF0000) >> 16 );
     unsigned long long2 = (unsigned long)((u64Input & 0x0000FFFF));
     String u64Strhex ="0x" + String(long1, HEX) + String(long2, HEX);
-    return u64Strhex;
+  */
+  return u64Strhex;
 }
 
 String u16toStr(uint16_t u16Input)
