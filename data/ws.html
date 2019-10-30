@@ -1,9 +1,11 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
+ <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
    <title> ESP32 ZigBee Gateway</title>
       <script type = "text/javascript">
-        var ws = new WebSocket("ws://" + document.location.hostname + "/ws");
+	    var ws;
+        ws = new WebSocket("ws://" + document.location.hostname + ":81");
  
         ws.onopen = function() {
 			document.getElementById("display").innerHTML  = "Connected";
@@ -12,6 +14,14 @@
         ws.onmessage = function(evt) {
 			document.getElementById('log').value+=">"+evt.data + "\n";
         };
+		
+		
+        function enableBind() {
+			ws.send("enableBind");
+        }
+		function enableJoin() {
+            ws.send("addDevice");
+        }
       </script>
    </head>
  
@@ -19,6 +29,8 @@
       <div>
          <p id = "display">Not connected</p>
 		  <button onclick="window.location.href = '/devices';">LIst of devices</button>
+		  <button onclick="enableBind()">EnableBind</button>
+		  <button onclick="enableJoin()">Add Device</button>
       </div>
 	  <div style='float:left;width: 50%;'>
 		<textarea id="log"  style='width: 100%' rows='30'></textarea>

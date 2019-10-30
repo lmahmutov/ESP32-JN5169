@@ -377,8 +377,8 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
           u64ExtendedPANID <<= 8;
           u64ExtendedPANID |= au8Data[12 + i];
         }
-
-
+        //Сохраняем длинный адрес координатора
+        u64ExtendedAddr_coord = u64ExtendedAddr;
         print_string += " (Network State Response)";
         print_string += "\n";
         print_string += "  Short Address: ";
@@ -440,7 +440,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
           u64ExtAddr <<= 8;
           u64ExtAddr  |= au8Data[3 + i];
         }
-
+        //
         print_string += " (Network Up)";
         print_string += "\n";
         print_string += "  Status: " + u8toStr(au8Data[0]);
@@ -462,6 +462,9 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         if (au8Data[0] == 1)
         {
           print_string += "TRUE";
+          webSocket.broadcastTXT("Join enabled");
+          joinStarted = true; //Ставим флаг что подключение разрешено
+          joinSecCounter = 30; // По умолчанию 30 сек
         }
         else
         {
@@ -531,7 +534,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
       }
       break;
-      
+
     case 0x8017:
       {
         uint32_t u32TimeStamp = 0;
@@ -544,7 +547,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
         print_string += "\n";
       }
       break;
-      
+
     case 0x8029:
       {
         uint64_t u64AddrData = 0;
@@ -628,6 +631,7 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
 
     case 0x8030:
       {
+        BindResponse = true;
         print_string += " (Bind Response)";
         print_string += "\n";
         print_string += "  SQN: 0x" + String(au8Data[0], HEX);
@@ -685,66 +689,66 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
     case 0x8042:
       {
         /*
-        uint16_t u16ShortAddr = 0;
-        uint16_t u16ManufacturerCode = 0;
-        uint16_t u16RxSize = 0;
-        uint16_t u16TxSize = 0;
-        uint16_t u16ServerMask = 0;
-        uint16_t u16BitFields = 0;
-        byte u8DescriptorCapability = 0;
-        byte u8MacCapability = 0;
-        byte u8MaxBufferSize = 0;
+          uint16_t u16ShortAddr = 0;
+          uint16_t u16ManufacturerCode = 0;
+          uint16_t u16RxSize = 0;
+          uint16_t u16TxSize = 0;
+          uint16_t u16ServerMask = 0;
+          uint16_t u16BitFields = 0;
+          byte u8DescriptorCapability = 0;
+          byte u8MacCapability = 0;
+          byte u8MaxBufferSize = 0;
 
-        u16ShortAddr   = au8Data[2];
-        u16ShortAddr <<= 8;
-        u16ShortAddr  |= au8Data[3];
+          u16ShortAddr   = au8Data[2];
+          u16ShortAddr <<= 8;
+          u16ShortAddr  |= au8Data[3];
 
-        u16ManufacturerCode   = au8Data[4];
-        u16ManufacturerCode <<= 8;
-        u16ManufacturerCode  |= au8Data[5];
+          u16ManufacturerCode   = au8Data[4];
+          u16ManufacturerCode <<= 8;
+          u16ManufacturerCode  |= au8Data[5];
 
-        u16RxSize = au8Data[6];
-        u16RxSize <<= 8;
-        u16RxSize |= au8Data[7];
+          u16RxSize = au8Data[6];
+          u16RxSize <<= 8;
+          u16RxSize |= au8Data[7];
 
-        u16TxSize = au8Data[8];
-        u16TxSize <<= 8;
-        u16TxSize |= au8Data[9];
+          u16TxSize = au8Data[8];
+          u16TxSize <<= 8;
+          u16TxSize |= au8Data[9];
 
-        u16ServerMask = au8Data[10];
-        u16ServerMask <<= 8;
-        u16ServerMask |= au8Data[11];
+          u16ServerMask = au8Data[10];
+          u16ServerMask <<= 8;
+          u16ServerMask |= au8Data[11];
 
-        u8DescriptorCapability = au8Data[12];
-        u8MacCapability = au8Data[13];
-        u8MaxBufferSize = au8Data[14];
+          u8DescriptorCapability = au8Data[12];
+          u8MacCapability = au8Data[13];
+          u8MaxBufferSize = au8Data[14];
 
-        u16BitFields = au8Data[15];
-        u16BitFields <<= 8;
-        u16BitFields |= au8Data[16];
+          u16BitFields = au8Data[15];
+          u16BitFields <<= 8;
+          u16BitFields |= au8Data[16];
 
-        print_string += " (Node Descriptor Response)";
-        print_string += "\n";
-        print_string += "  SQN: 0x" + au8Data[0];
-        print_string += "\n";
-        print_string += "  Status: 0x" + au8Data[1];
-        print_string += "\n";
-        print_string += "  Short Address: 0x" + u16ShortAddr;
-        print_string += "\n";
-        print_string += "  Manufacturer Code: 0x" + u16ManufacturerCode;
-        print_string += "\n";
-        print_string += "  Max Rx Size: " + u16RxSize;
-        print_string += "\n";
-        print_string += "  Max Tx Size: " + u16TxSize;
-        print_string += "\n";
-        print_string += "  Server Mask: 0x" + u16ServerMask;
-        print_string += "\n";
-        //displayDescriptorCapability(u8DescriptorCapability);
-        //displayMACcapability(u8MacCapability);
-        print_string += "  Max Buffer Size: " + u8MaxBufferSize;
-        print_string += "\n";
-        print_string += "  Bit Fields: 0x" + u16BitFields;
-        print_string += "\n";
+          print_string += " (Node Descriptor Response)";
+          print_string += "\n";
+          print_string += "  SQN: 0x" + au8Data[0];
+          print_string += "\n";
+          print_string += "  Status: 0x" + au8Data[1];
+          print_string += "\n";
+          print_string += "  Short Address: 0x" + u16ShortAddr;
+          print_string += "\n";
+          print_string += "  Manufacturer Code: 0x" + u16ManufacturerCode;
+          print_string += "\n";
+          print_string += "  Max Rx Size: " + u16RxSize;
+          print_string += "\n";
+          print_string += "  Max Tx Size: " + u16TxSize;
+          print_string += "\n";
+          print_string += "  Server Mask: 0x" + u16ServerMask;
+          print_string += "\n";
+          //displayDescriptorCapability(u8DescriptorCapability);
+          //displayMACcapability(u8MacCapability);
+          print_string += "  Max Buffer Size: " + u8MaxBufferSize;
+          print_string += "\n";
+          print_string += "  Bit Fields: 0x" + u16BitFields;
+          print_string += "\n";
         */
       }
       break;
@@ -924,12 +928,13 @@ void displayDecodedCommand(uint16_t u16Type, uint16_t u16Length, byte* au8Data)
           u64ExtAddr <<= 8;
           u64ExtAddr |= au8Data[i];
         }
-
+        DelCall = true;
+        deletedDevLongAddr = u64ExtAddr;
         print_string += " (Leave Indication)";
         print_string += "\n";
-        print_string += "  Extended Address: 0x" + String(long(u64ExtAddr), HEX);
+        print_string += "  Extended Address: " + u64toStr(u64ExtAddr);
         print_string += "\n";
-        print_string += "  Rejoin Status: 0x" + String(au8Data[8]);
+        print_string += "  Rejoin Status: " + u8toStr(au8Data[8]);
         print_string += "\n";
       }
       break;

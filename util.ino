@@ -1,4 +1,4 @@
-String u64toStr(uint64_t u64Input)
+String u64toStr(uint64_t input)
 {
   String result = "";//
   uint8_t base = 16; //hex 10 dec

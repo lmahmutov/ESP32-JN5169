@@ -26,8 +26,9 @@ HardwareSerial jnSerial(2);
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+int displayEnabled = 60;
 #endif
-
+unsigned long timing; // Переменная для хранения точки отсчета
 //Web server
 AsyncWebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
@@ -51,20 +52,30 @@ char timeStringBuff[50]; //50 chars should be enough
 String print_string = "";
 String attr_response = "";
 bool oledidle = true;
-// ------task get full info -----
+bool joinStarted = false;
+int joinSecCounter = 0;
+// ------task del from database---------
+bool DelCall = false;
+uint64_t deletedDevLongAddr  = 0;
+// ------task get full info ------------
 bool new_device_connected = false;
 bool connectGood = true;
+bool needBind = false;
+uint8_t bindEp = 0;
 uint16_t new_device_ShortAddr = 0;
 uint64_t new_device_LongAddr  = 0;
 String NewDevName = "";
 int counter = 0;
 bool EpResponse = false;
 bool ClResponse = false;
+bool BindResponse = false;
 bool DnResponse = false;
 byte rxMessageData_newDevice[1000];
 byte ClDataNewDevice[1000];
 String NewDevComplete = "";
 //---------------------------------------
+uint64_t u64ExtendedAddr_coord;
+// --------------------------------------
 uint64_t au64ExtAddr[16];
 byte rxMessageData[1024];
 byte rxMessageChecksum = 0;
@@ -80,6 +91,7 @@ byte rxByte;
 #define TXD2 17
 
 void serialEvent() {
+  webSocket.loop();
   while (jnSerial.available())
   {
     byte rxByte = (byte)jnSerial.read();
@@ -162,6 +174,8 @@ void serialEvent() {
 
 void TaskDecode( void *pvParameters );
 void TaskGetFullInfo( void *pvParameters );
+void TaskDelDevice( void *pvParameters );
+void TaskOled( void *pvParameters );
 
 //gets called when WiFiManager enters configuration mode
 void configModeCallback (WiFiManager *myWiFiManager) {
@@ -291,17 +305,14 @@ void setup() {
   display.display();
 #endif
   //Web Server setup
-  webSocket.onEvent(onWsEvent);
-  server.addHandler(&webSocket);
-
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/ws.html", "text/html");
   });
   server.on ( "/devices", [](AsyncWebServerRequest * request) {
-    devices();
+    devicesWebpage(request);
   } );
   server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest * request) {
-    request->send(SPIFFS, "/favicon.ico", "text/html");
+    request->send(SPIFFS, "/", "text/html");
   });
   server.begin();
   delay(1000);
@@ -313,13 +324,31 @@ void setup() {
     ,  "TaskDecodeUart"
     ,  32768
     ,  NULL
-    ,  2
+    ,  1
     ,  NULL
     ,  ARDUINO_RUNNING_CORE);
 
   xTaskCreatePinnedToCore(
     TaskGetFullInfo
     ,  "GetFullInfoFromConnectedDevice"
+    ,  10000
+    ,  NULL
+    ,  1
+    ,  NULL
+    ,  ARDUINO_RUNNING_CORE);
+
+  xTaskCreatePinnedToCore(
+    TaskOled
+    ,  "Oled and join data"
+    ,  10000
+    ,  NULL
+    ,  1
+    ,  NULL
+    ,  ARDUINO_RUNNING_CORE);
+
+  xTaskCreatePinnedToCore(
+    TaskDelDevice
+    ,  "Delete from database"
     ,  10000
     ,  NULL
     ,  1
@@ -380,16 +409,21 @@ void OledTimeIP()
   display.println(dateStringBuff);
   display.setCursor(44, 36);
   display.println(timeStringBuff);
-  display.setCursor(10, 48);
-  String freeRam = String(ESP.getFreeHeap(), DEC);
-  display.println("Free RAM : " + freeRam);
+  if (joinStarted) {
+    display.setCursor(20, 48);
+    display.println("Join enabled " + String(joinSecCounter));
+  }
+  else {
+    display.setCursor(10, 48);
+    String freeRam = String(ESP.getFreeHeap(), DEC);
+    display.println("Free RAM : " + freeRam);
+  }
   display.display();
 #endif
 }
 
 void loop() {
   //transmitCommand(0x0017, 0, 0);
-  OledTimeIP();
   delay(1000);
   //sendClusterOnOff(2,0x5465,1,1,2);
 }
@@ -409,6 +443,26 @@ void TaskDecode(void *pvParameters)  // This is a task.
   }
 }
 
+void TaskOled(void *pvParameters)  // This is a task.
+{
+  (void) pvParameters;
+
+  for (;;) // A Task shall never return or exit.
+  {
+#ifdef UseOled
+    OledTimeIP();
+#endif
+    if (joinStarted) {
+      joinSecCounter--;
+      if (joinSecCounter < 0) {
+        Serial.println("Join disabled");
+        joinStarted = false;
+        webSocket.broadcastTXT("Join disabled");
+      }
+    }
+    vTaskDelay(1000);  // one tick delay (15ms) in between reads for stability
+  }
+}
 
 void TaskGetFullInfo(void *pvParameters)  // This is a task.
 {
@@ -416,91 +470,120 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
 
   for (;;) // A Task shall never return or exit.
   {
-    if (new_device_connected) {
+    if (new_device_connected && joinStarted) {
       new_device_connected = false;  // получаем флаг что девайс подключился, и сразу его сбросим
-      // дальше начнем обработку
-      NewDevComplete = "";           // очищаем стринг вывода
-      activeEndpointDescriptorRequest(new_device_ShortAddr); // посылаем в сеть запрос эндпоинтов (0x0045)
-      counter = 5000;                // задерка на 5 сек
-      while (!EpResponse) {          // ждем ответа 0x8045 (копируем данные в новый массив, и флаг ставим true)
-        delay(1);
-        if (counter-- == 0) {
-          connectGood = false;
-          break;
-        }
-      }                             // получили ответ или закончилось время
-      delay(50);                    // На всякий случай подождем, чтобы слишком быстро не слать команду
-      //Эндпоинты получили, пытаемся узнать имя железки
-      sendReadAttribRequest(new_device_ShortAddr, 1, rxMessageData_newDevice[1] , 0 , 0, 0, 0, 1, 0x0005); // Запрос атрибута как зовут железку
-      counter = 5000;               // задержка 5 сек
-      while (!DnResponse) {         // ждем ответа 0x8102 (почему то ответчает атрибут репорт.... имя ложим в переменную NewDevName)
-        delay(1);
-        if (counter-- == 0) {
-          connectGood = false;
-          break;
-        }
-      }
-      delay(50);                   //На всякий случай подождем, чтобы слишком быстро не слать команду
-      //
-      NewDevComplete += "{" + u64toStr(new_device_LongAddr) + ": ";
-      NewDevComplete += NewDevName + " ; ";
-      NewDevComplete += u16toStr(new_device_ShortAddr) + " ; ";
-      for (int i = 0; i < rxMessageData_newDevice[0]; i++)
-      {
-        NewDevComplete += " Ep";
-        NewDevComplete += String(i, DEC) + ":";
-        NewDevComplete += String(rxMessageData_newDevice[i + 1], DEC) + " ; ";
-        simpleDescriptorRequest(new_device_ShortAddr, rxMessageData_newDevice[i + 1]);
-        counter = 5000;
-        while (!ClResponse) {
+      // дальше начнем обработку, проверим есть ли железка в базе
+      if (sqlite_select_answer(u64toStr(new_device_LongAddr)) == 0) {
+        NewDevComplete = "";           // очищаем стринг вывода
+        activeEndpointDescriptorRequest(new_device_ShortAddr); // посылаем в сеть запрос эндпоинтов (0x0045)
+        counter = 5000;                // задерка на 5 сек
+        while (!EpResponse) {          // ждем ответа 0x8045 (копируем данные в новый массив, и флаг ставим true)
+          delay(1);
+          if (counter-- == 0) {
+            connectGood = false;
+            break;
+          }
+        }                             // получили ответ или закончилось время
+        delay(50);                    // На всякий случай подождем, чтобы слишком быстро не слать команду
+        //Эндпоинты получили, пытаемся узнать имя железки
+        sendReadAttribRequest(new_device_ShortAddr, 1, rxMessageData_newDevice[1] , 0 , 0, 0, 0, 1, 0x0005); // Запрос атрибута как зовут железку
+        counter = 5000;               // задержка 5 сек
+        while (!DnResponse) {         // ждем ответа 0x8102 (почему то ответчает атрибут репорт.... имя ложим в переменную NewDevName)
           delay(1);
           if (counter-- == 0) {
             connectGood = false;
             break;
           }
         }
-        ///Get clusters
-        byte u8Length = 0;
-        u8Length = ClDataNewDevice[0];
-        if (u8Length > 0)
+        delay(50);                   //На всякий случай подождем, чтобы слишком быстро не слать команду
+        //
+        NewDevComplete += "{" + u64toStr(new_device_LongAddr) + ": ";
+        NewDevComplete += NewDevName + " ; ";
+        NewDevComplete += u16toStr(new_device_ShortAddr) + " ; ";
+        for (int i = 0; i < rxMessageData_newDevice[0]; i++)
         {
-          byte u8InputClusterCount = 0;
-          u8InputClusterCount = ClDataNewDevice[7];
-          NewDevComplete += "Clusters ";
-          for (int i = 0; i < u8InputClusterCount; i++)
-          {
-            uint16_t u16ClusterId = 0;
-            u16ClusterId = ClDataNewDevice[(i * 2) + 8];
-            u16ClusterId <<= 8;
-            u16ClusterId |= ClDataNewDevice[(i * 2) + 9];
-            NewDevComplete += ": " + u16toStr(u16ClusterId);
-            // sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
+          NewDevComplete += " Ep";
+          NewDevComplete += String(i, DEC) + ":";
+          NewDevComplete += String(rxMessageData_newDevice[i + 1], DEC) + " ; ";
+          bindEp = rxMessageData_newDevice[i + 1];
+          simpleDescriptorRequest(new_device_ShortAddr, bindEp);
+          counter = 5000;
+          while (!ClResponse) {
+            delay(1);
+            if (counter-- == 0) {
+              connectGood = false;
+              break;
+            }
           }
+          ///Get clusters
+          byte u8Length = 0;
+          u8Length = ClDataNewDevice[0];
+          if (u8Length > 0)
+          {
+            byte u8InputClusterCount = 0;
+            u8InputClusterCount = ClDataNewDevice[7];
+            NewDevComplete += "Clusters ";
+            for (int i = 0; i < u8InputClusterCount; i++)
+            {
+              uint16_t u16ClusterId = 0;
+              u16ClusterId = ClDataNewDevice[(i * 2) + 8];
+              u16ClusterId <<= 8;
+              u16ClusterId |= ClDataNewDevice[(i * 2) + 9];
+              NewDevComplete += ": " + u16toStr(u16ClusterId);
+              //Тест механики биндда, если сработает будет круто ) Биндим все кластеры по очереди. и биндим только на новые устройства.
+              if (connectGood && needBind) {
+                Serial.println(u64toStr(new_device_LongAddr) + ", " +  String(bindEp, DEC) + ", " + u16toStr(u16ClusterId) + ", 3, " + u64toStr(u64ExtendedAddr_coord) + ", 1");
+                sendBindRequest(new_device_LongAddr, bindEp, u16ClusterId, 3, u64ExtendedAddr_coord, 1 );
+                counter = 5000;
+                while (!BindResponse) {
+                  delay(1);
+                  if (counter-- == 0) {
+                    break;
+                  }
+                }
+                BindResponse = false;
+              }
+              delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
+              // sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
+            }
+          }
+          delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
         }
-        delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
-      }
-      NewDevComplete += " }";
-      if (connectGood == false)
-      {
-        NewDevComplete = "!!!!!!Add device fail, please try again!!!!!!";
-      }
-      Serial.println(NewDevComplete);
-      if (connectGood == true && globalClient != NULL && globalClient->status() == WS_CONNECTED) {
-        globalClient->text(NewDevComplete);
-      }
-      if (connectGood == true) {
-        if (sqlite_select_answer(u64toStr(new_device_LongAddr)) == 0) {
-          Serial.println("New device, insert to database");
+        NewDevComplete += " }";
+        if (connectGood == true) {
+          webSocket.broadcastTXT(NewDevComplete);
           sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
         }
-        else {
-          Serial.println("Device in base");
+        else
+        {
+          NewDevComplete = "!!!!!!Add device fail, please try again!!!!!!";
+          webSocket.broadcastTXT(NewDevComplete);
         }
+        Serial.println(NewDevComplete);
+
+        connectGood = true; EpResponse = false; BindResponse = false; bindEp = 0; DnResponse = false; ClResponse = false; NewDevName = ""; //needBind = false;
+        memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
+        memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
       }
-      connectGood = true; EpResponse = false; DnResponse = false; ClResponse = false; NewDevName = "";
-      memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
-      memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
+      else {
+        Serial.println("Device in base");
+      }
     }
-    vTaskDelay(10);  // one tick delay (15ms) in between reads for stability
+    vTaskDelay(100);  // one tick delay (15ms) in between reads for stability
+  }
+}
+
+void TaskDelDevice(void *pvParameters)  // This is a task.
+{
+  (void) pvParameters;
+
+  for (;;) // A Task shall never return or exit.
+  {
+    if(DelCall){
+      sqliteDeleteDevice(u64toStr(deletedDevLongAddr));
+      Serial.println("Delete device from database");
+      DelCall = false;
+    }
+    vTaskDelay(100);  // one tick delay (15ms) in between reads for stability
   }
 }

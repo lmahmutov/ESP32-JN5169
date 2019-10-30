@@ -1,17 +1,13 @@
 void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, uint16_t u16AttribId, byte u8AttribType, byte* au8AttribData, byte u8AttribIndex, uint16_t u16AttrSize)
 {
-
   attr_response += "{Date Time: ";
   attr_response += timeStringBuff;
   attr_response += "{SQN: 0x" + String(SQN, DEC);
-  attr_response += ";ShortAddr: 0x" + String(u16SrcAddr, HEX);
-  attr_response += ";Cluster ID: 0x" + String(u16ClusterId, HEX);
-  attr_response += ";Attribute ID: 0x" + String(u16AttribId, HEX);
-  //attr_response += "\n";
-  attr_response += ";Attribute Size: 0x" + String(u16AttrSize, HEX);
-  //attr_response += "\n";
-  attr_response += ";Attribute Type: 0x" + String(u8AttribType, HEX);
-
+  attr_response += ";ShortAddr: " + u16toStr(u16SrcAddr);
+  attr_response += ";Cluster ID: " + u16toStr(u16ClusterId);
+  attr_response += ";Attribute ID: " + u16toStr(u16AttribId);
+  attr_response += ";Attribute Size: " + u16toStr(u16AttrSize);
+  attr_response += ";Attribute Type: " + u8toStr(u8AttribType)+ ";";
 
   /*
      clusterList.Add(0x0000, " (General: Basic)");
@@ -78,9 +74,7 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
       {
         case 0x10:
           //attr_response += " (Boolean)";
-          //attr_response += "\n";
           attr_response += "  Attribute Data: 0x" + String(au8AttribData[u8AttribIndex], DEC);
-          //attr_response += "\n";
           break;
       }
       break;
@@ -95,18 +89,16 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
           u16Data <<= 8;
           u16Data  |= au8AttribData[u8AttribIndex + 1];
           attr_response += " (UINT16)";
-          attr_response += "\n";
           attr_response += "  Attribute Data: 0x" + String(u16Data, HEX);
-          attr_response += "\n";
           break;
+          
         case 0x29:
           uint16_t int16Data;
           int16Data   = au8AttribData[u8AttribIndex];
           int16Data <<= 8;
           int16Data  |= au8AttribData[u8AttribIndex + 1];
           attr_response += "Temperature = ";
-          attr_response += int16Data;
-          attr_response += "\n";
+          attr_response += String(int16Data, DEC);
           break;
       }
       break;
@@ -119,18 +111,16 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
           u16Data <<= 8;
           u16Data  |= au8AttribData[u8AttribIndex + 1];
           attr_response += " (UINT16)";
-          attr_response += "\n";
           attr_response += "  Attribute Data: 0x" + String(u16Data, HEX);
-          attr_response += "\n";
           break;
+          
         case 0x29:
           uint16_t int16Data;
           int16Data   = au8AttribData[u8AttribIndex];
           int16Data <<= 8;
           int16Data  |= au8AttribData[u8AttribIndex + 1];
           attr_response += "Pressure = ";
-          attr_response += int16Data;
-          attr_response += "\n";
+          attr_response += String(int16Data, DEC);
           break;
       }
       break;
@@ -142,9 +132,8 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
           u16Data   = au8AttribData[u8AttribIndex];
           u16Data <<= 8;
           u16Data  |= au8AttribData[u8AttribIndex + 1];
-          attr_response += "Humidity";
-          attr_response += u16Data;
-          attr_response += "\n";
+          attr_response += "Humidity = ";
+          attr_response += String(u16Data, DEC);
           break;
       }
       break;
@@ -245,10 +234,7 @@ void displayAttribute(uint8_t SQN, uint16_t u16SrcAddr, uint16_t u16ClusterId, u
     }
   */
   attr_response += "}";
-  Serial.print(attr_response);
-
- // if (globalClient != NULL && globalClient->status() == WS_CONNECTED) {
- //   globalClient->text(attr_response);
- // }
+  Serial.println(attr_response);
+  webSocket.broadcastTXT(attr_response); //wsc 
   attr_response = "";
 }

@@ -1,11 +1,11 @@
 
 //Websocket
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len) {
-    String jsond = "";
+void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length)
+{
+  String jsond = "";
   String spayload;
   // Figure out the type of WebSocket event
   switch (type) {
-
     // Client has disconnected
     case WStype_DISCONNECTED:
       Serial.printf("[%u] Disconnected!\n", num);
@@ -24,22 +24,26 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
       Serial.printf("[%u] Text: %s\n", num, payload);
       spayload = String((char*) payload);
 
-      if (spayload == "getDeviceList") {
-        webSocket.sendTXT(num, jsond);jsond="";
+      if (spayload == "enableBind") {
+        needBind = true;
+        Serial.println("Auto binding enabled");
+        jsond = "Auto binding enabled";
+        webSocket.sendTXT(num, jsond);
       }
 
       if (spayload == "addDevice") {
-        Serial.println("set_permit_joining_req");
-          setPermitJoin(0x0000, 0xFE, 0x00);
+        if (!joinStarted) {
+          setPermitJoin(0xFFFC, 0x1E, 0x00);
           delay(50);
-      
+          transmitCommand(0x0014, 0, 0);
+        }
       }
 
       if (spayload == "getConfig") {
         Serial.println("getConfig");
         //String StringConfig = "{\"ssid\":\"" + ConfigSettings.ssid + "\",\"pass\":\"" + ConfigSettings.password + "\",\"ip\":\"" + ConfigSettings.ipAddress + "\",\"mask\":\"" + ConfigSettings.ipMask + "\",\"gw\":\"" + ConfigSettings.ipGW + "\",\"mqtt\":\"" + ConfigSettings.ipMQTT + "\",\"mqttPort\":\"" + ConfigSettings.mqttPort + "\",\"mqttLogin\":\"" + ConfigSettings.mqttLogin + "\",\"mqttPassw\":\"" + ConfigSettings.mqttPassw + "\",\"mqttEnable\":\"" + ConfigSettings.mqttEnable + "\"}";
-       
-       // webSocket.sendTXT(num, "retConfig/" + StringConfig);
+
+        // webSocket.sendTXT(num, "retConfig/" + StringConfig);
       }
 
       if (spayload.indexOf("ssid") > 1) {
@@ -58,9 +62,9 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
         Serial.println("send_raw_data");  // отправка рав даты в юарт
       }
       if (payload[0] == 0x01) {
-       Serial.println("send_cmd_OnOf");  // отправка on_off
-       sendClusterOnOff(3,0xdb91,1,1,2);
-       // send_on_off(BUILD_UINT16(payload[2], payload[1]), payload[3], payload[4]);
+        Serial.println("send_cmd_OnOf");  // отправка on_off
+        sendClusterOnOff(3, 0xdb91, 1, 1, 2);
+        // send_on_off(BUILD_UINT16(payload[2], payload[1]), payload[3], payload[4]);
       }
       break;
     case WStype_ERROR: break;
@@ -76,7 +80,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 
 
 //Generated page
-void devices() {
+void devicesWebpage(AsyncWebServerRequest * request) {
   String sql = "select * from devices";
   rc = sqlite3_prepare_v2(db, sql.c_str(), 1000, &res, &tail);
   if (rc != SQLITE_OK) {

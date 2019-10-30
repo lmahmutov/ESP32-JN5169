@@ -64,6 +64,17 @@ void sqlite_insertnewdev(String IEEE, String devname, String longaddr)
    }
 }
 
+void sqliteDeleteDevice(String IEEE)
+{
+  //String sql = "delete from endpoints where IEEE = '" + IEEE + "'";
+  String sql = "delete from devices where IEEE = '" + IEEE + "'";
+   rc = db_exec(db, sql.c_str());
+   if (rc != SQLITE_OK) {
+       return;
+   }
+}
+
+
 /*
 void sqlite_insertnewdev(String IEEE, String devname, String longaddr)
 {
