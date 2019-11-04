@@ -8,4 +8,3 @@ https://github.com/lmahmutov/esp32_arduino_sqlite3_lib
 
 Прошивка
 https://github.com/fairecasoimeme/ZiGate/tree/master/Module%20Radio/Firmware/bin/ZiGate/JN5169
-
