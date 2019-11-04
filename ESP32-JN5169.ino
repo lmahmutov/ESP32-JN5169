@@ -4,8 +4,6 @@
 #define ARDUINO_RUNNING_CORE 1
 #endif
 
-#define UseOled // Есть или нет Экран
-
 #include <FS.h>
 #include "time.h"
 #include "SPIFFS.h"
@@ -16,18 +14,6 @@
 #include "HardwareSerial.h"
 HardwareSerial jnSerial(2);
 
-#ifdef UseOled
-//OLED Section
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-int displayEnabled = 60;
-#endif
 unsigned long timing; // Переменная для хранения точки отсчета
 //Web server
 AsyncWebServer server(80);
@@ -175,7 +161,6 @@ void serialEvent() {
 void TaskDecode( void *pvParameters );
 void TaskGetFullInfo( void *pvParameters );
 void TaskDelDevice( void *pvParameters );
-void TaskOled( void *pvParameters );
 
 //gets called when WiFiManager enters configuration mode
 void configModeCallback (WiFiManager *myWiFiManager) {
@@ -183,24 +168,6 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   Serial.println(WiFi.softAPIP());
   //if you used auto generated SSID, print it
   Serial.println(myWiFiManager->getConfigPortalSSID());
-#ifdef UseOled
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.println(F("Zigbee Gateway v0.1"));
-  display.setCursor(0, 10);
-  display.println(F("https://nrf52840.ru"));
-  display.setCursor(0, 20);
-  display.println(F("Wifi config mode"));
-  display.setCursor(10, 30);
-  display.println(F("Connect to AP"));
-  display.setCursor(20, 40);
-  display.println(F("ZigBeeGW"));
-  display.setCursor(20, 50);
-  display.println(F("and Setup WiFi"));
-  display.display();
-#endif
 }
 
 void UpdateLocalTime()
@@ -263,15 +230,6 @@ void setup() {
   if (db_open("/spiffs/data.db", &db))
     return;
   //-------------------------------------------------------------------------
-
-#ifdef UseOled
-  //OLED
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;); // Don't proceed, loop forever
-  }
-#endif
   // Wifi Section
   WiFiManager wm;
   //wm.resetSettings();
@@ -287,23 +245,6 @@ void setup() {
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   UpdateLocalTime();
-#ifdef UseOled
-  //Oled Show WIFI
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.println(F("Zigbee Gateway v0.1"));
-  display.setCursor(0, 15);
-  display.println(F("https://nrf52840.ru"));
-  display.setCursor(0, 30);
-  display.println(F("WIFI Connected"));
-  display.setCursor(0, 45);
-  display.println(F("IP:"));
-  display.setCursor(20, 45);
-  display.println(WiFi.localIP());
-  display.display();
-#endif
   //Web Server setup
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/ws.html", "text/html");
@@ -331,15 +272,6 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskGetFullInfo
     ,  "GetFullInfoFromConnectedDevice"
-    ,  10000
-    ,  NULL
-    ,  1
-    ,  NULL
-    ,  ARDUINO_RUNNING_CORE);
-
-  xTaskCreatePinnedToCore(
-    TaskOled
-    ,  "Oled and join data"
     ,  10000
     ,  NULL
     ,  1
@@ -395,31 +327,6 @@ void setup() {
 void OledTimeIP()
 {
   UpdateLocalTime();
-#ifdef UseOled
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(5, 0);
-  display.println(F("Zigbee Gateway v0.1"));
-  display.setCursor(10, 12);
-  display.println(F("IP:"));
-  display.setCursor(40, 12);
-  display.println(WiFi.localIP());
-  display.setCursor(20, 24);
-  display.println(dateStringBuff);
-  display.setCursor(44, 36);
-  display.println(timeStringBuff);
-  if (joinStarted) {
-    display.setCursor(20, 48);
-    display.println("Join enabled " + String(joinSecCounter));
-  }
-  else {
-    display.setCursor(10, 48);
-    String freeRam = String(ESP.getFreeHeap(), DEC);
-    display.println("Free RAM : " + freeRam);
-  }
-  display.display();
-#endif
 }
 
 void loop() {
@@ -440,27 +347,6 @@ void TaskDecode(void *pvParameters)  // This is a task.
   {
     serialEvent();
     vTaskDelay(10);  // one tick delay (15ms) in between reads for stability
-  }
-}
-
-void TaskOled(void *pvParameters)  // This is a task.
-{
-  (void) pvParameters;
-
-  for (;;) // A Task shall never return or exit.
-  {
-#ifdef UseOled
-    OledTimeIP();
-#endif
-    if (joinStarted) {
-      joinSecCounter--;
-      if (joinSecCounter < 0) {
-        Serial.println("Join disabled");
-        joinStarted = false;
-        webSocket.broadcastTXT("Join disabled");
-      }
-    }
-    vTaskDelay(1000);  // one tick delay (15ms) in between reads for stability
   }
 }
 
