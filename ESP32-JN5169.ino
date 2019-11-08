@@ -19,7 +19,6 @@ unsigned long timing; // Переменная для хранения точки
 //Web server
 AsyncWebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
-const char* PARAM_MESSAGE = "message";
 //---------------------------------
 //SQlite
 sqlite3 *db;
@@ -400,11 +399,6 @@ void setup() {
   //void sendReadAttribRequest(uint16_t u16ShortAddr, byte u8SrcEndPoint, byte u8DstEndPoint, uint16_t u16ClusterID, byte u8Direction, byte u8ManuSpecific, uint16_t u16ManuID, byte u8AttribCount, uint16_t u16AttribID1)
   //sqlite_select_answer("0xf0c8fc06");
   //sqlCommand("select * from endpoints");
-}
-
-void OledTimeIP()
-{
-  UpdateLocalTime();
 }
 
 void loop() {
