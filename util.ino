@@ -1,6 +1,7 @@
 String u64toStr(uint64_t input)
 {
-  String result = "";//
+  String result = "";
+  String output = "";
   uint8_t base = 16; //hex 10 dec
 
   do {
@@ -59,7 +60,8 @@ String u64toStr(uint64_t input)
         result = "0" + result;
       } break;
   }
-  return result;
+  output = "0x" + result;
+  return output;
 }
 
 String u16toStr(uint16_t u16Input)

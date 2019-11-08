@@ -25,18 +25,17 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t leng
       spayload = String((char*) payload);
 
       if (spayload == "enableBind") {
-        needBind = true;
         Serial.println("Auto binding enabled");
         jsond = "Auto binding enabled";
         webSocket.sendTXT(num, jsond);
       }
 
       if (spayload == "addDevice") {
-        if (!joinStarted) {
+        //if (!joinStarted) {
           setPermitJoin(0xFFFC, 0x1E, 0x00);
           delay(50);
           transmitCommand(0x0014, 0, 0);
-        }
+        //}
       }
 
       if (spayload == "getConfig") {
