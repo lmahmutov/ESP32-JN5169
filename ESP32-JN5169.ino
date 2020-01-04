@@ -6,7 +6,6 @@
 
 #include <FS.h>
 #include "time.h"
-#include "SD_MMC.h"
 #include "SPIFFS.h"
 #include <sqlite3.h>
 #include <WiFiManager.h>
@@ -40,14 +39,13 @@ String attr_response = "";
 bool oledidle = true;
 bool joinStarted = false;
 int joinSecCounter = 0;
-bool FSsd = false;
-bool FSsp = false;
 // ------task del from database---------
 bool DelCall = false;
 uint64_t deletedDevLongAddr  = 0;
 // ------task get full info ------------
 bool new_device_connected = false;
 bool connectGood = true;
+bool needBind = false;
 uint8_t bindEp = 0;
 uint16_t new_device_ShortAddr = 0;
 uint64_t new_device_LongAddr  = 0;
@@ -198,36 +196,11 @@ void setup() {
   Serial.println("Start");
 
   jnSerial.begin(115200, SERIAL_8N1, RXD2, TXD2);
-  //SD-MMC----------------------------------------------------------
-  if (!SD_MMC.begin()) {
-    Serial.println("Card Mount Failed");
-  } else {
-    FSsd = true;
-  }
-  uint8_t cardType = SD_MMC.cardType(); delay(1000);
-  if (cardType == CARD_NONE) {
-    Serial.println("No SD_MMC card attached");
-  }
-  Serial.print("SD_MMC Card Type: ");
-  if (cardType == CARD_MMC) {
-    Serial.println("MMC");
-  } else if (cardType == CARD_SD) {
-    Serial.println("SDSC");
-  } else if (cardType == CARD_SDHC) {
-    Serial.println("SDHC");
-  } else {
-    Serial.println("UNKNOWN");
-  }
-  uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
-  Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
-  //==============================================================
-  //SPIFF----------------------------------------------------------
+  //SPIFFS
   if (!SPIFFS.begin()) {
-    Serial.println("An Error has occurred while mounting SPIFFS");/*SPIFFS.begin(true); return;*/
-  } else {
-    FSsp = true;
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
   }
-  //=============================================================
   //SQlite
   File root = SPIFFS.open("/");
   if (!root) {
@@ -253,7 +226,7 @@ void setup() {
   }
 
   sqlite3_initialize();
-  if (db_open("/sdcard/data.db", &db))
+  if (db_open("/spiffs/data.db", &db))
     return;
   //-------------------------------------------------------------------------
   // Wifi Section
@@ -271,66 +244,16 @@ void setup() {
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   UpdateLocalTime();
-  //Web_Server_setup-------------------------------------------------
-  server.on("*", HTTP_GET, [](AsyncWebServerRequest * request) {
-    String path = request->url();
-    String dataType = "text/plain";
-    struct fileBlk {
-      File dataFile;
-    };
-    fileBlk *fileObj = new fileBlk;
-    if (path.endsWith("/")) path += "index.html";
-    if (path.endsWith(".src")) path = path.substring(0, path.lastIndexOf("."));
-    else if (path.endsWith(".html")) dataType = "text/html";
-    else if (path.endsWith(".htm")) dataType = "text/html";
-    else if (path.endsWith(".css")) dataType = "text/css";
-    else if (path.endsWith(".js")) dataType = "application/javascript";
-    else if (path.endsWith(".png")) dataType = "image/png";
-    else if (path.endsWith(".gif")) dataType = "image/gif";
-    else if (path.endsWith(".jpg")) dataType = "image/jpeg";
-    else if (path.endsWith(".ico")) dataType = "image/x-icon";
-    else if (path.endsWith(".xml")) dataType = "text/xml";
-    else if (path.endsWith(".pdf")) dataType = "application/pdf";
-    else if (path.endsWith(".zip")) dataType = "application/zip";
-    if (!FSsd) {
-      request->send(SPIFFS, request->url(), dataType);
-    } else {
-      /*     File dataFile = SD_MMC.open(path.c_str());
-        request->_tempObject = (void*)fileObj;
-        //   request->send(dataType,
-
-           dataFile.close();*/
-      fileObj->dataFile  = SD_MMC.open(path.c_str());
-      if (fileObj->dataFile.isDirectory()) {
-        path += "/index.htm"; dataType = "text/html";
-        fileObj->dataFile = SD_MMC.open(path.c_str());
-      }
-
-      if (!fileObj->dataFile) {
-        delete fileObj;
-        return false;
-      }
-
-      if (request->hasParam("download")) dataType = "application/octet-stream";
-
-      // Here is the context problem.  If there are multiple downloads active,
-      // we don't have the File handles. So we only allow one active download request
-      // at a time and keep the file handle in static.  I'm open to a solution.
-
-      request->_tempObject = (void*)fileObj;
-      request->send(dataType, fileObj->dataFile.size(), [request](uint8_t *buffer, size_t maxlen, size_t index) -> size_t {
-        fileBlk *fileObj = (fileBlk*)request->_tempObject;
-        size_t thisSize = fileObj->dataFile.read(buffer, maxlen);
-        if ((index + thisSize) >= fileObj->dataFile.size()) {
-          fileObj->dataFile.close();
-          request->_tempObject = NULL;
-          delete fileObj;
-        }
-        return thisSize;
-      });
-    }
+  //Web Server setup
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(SPIFFS, "/ws.html", "text/html");
   });
-
+  server.on ( "/devices", [](AsyncWebServerRequest * request) {
+    devicesWebpage(request);
+  } );
+  server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(SPIFFS, "/", "text/html");
+  });
   server.begin();
   delay(1000);
   webSocket.begin(); webSocket.onEvent(onWebSocketEvent); // Start WebSocket server and assign callback
@@ -339,7 +262,7 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskDecode
     ,  "TaskDecodeUart"
-    ,  10000
+    ,  32768
     ,  NULL
     ,  1
     ,  NULL
@@ -398,7 +321,6 @@ void setup() {
   //sendReadAttribRequest(0x5465, 1, 1 , 0 , 0, 0, 0, 1, 0x0005);
   //void sendReadAttribRequest(uint16_t u16ShortAddr, byte u8SrcEndPoint, byte u8DstEndPoint, uint16_t u16ClusterID, byte u8Direction, byte u8ManuSpecific, uint16_t u16ManuID, byte u8AttribCount, uint16_t u16AttribID1)
   //sqlite_select_answer("0xf0c8fc06");
-  //sqlCommand("select * from endpoints");
 }
 
 void loop() {
@@ -431,7 +353,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
     if (new_device_connected && joinStarted) {
       new_device_connected = false;  // получаем флаг что девайс подключился, и сразу его сбросим
       // дальше начнем обработку, проверим есть ли железка в базе
-      if (sqliteCheckIEEEinDb(u64toStr(new_device_LongAddr)) == 0) {
+      if (sqlite_select_answer(u64toStr(new_device_LongAddr)) == 0) {
         NewDevComplete = "";           // очищаем стринг вывода
         activeEndpointDescriptorRequest(new_device_ShortAddr); // посылаем в сеть запрос эндпоинтов (0x0045)
         counter = 5000;                // задерка на 5 сек
@@ -455,14 +377,14 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         }
         delay(50);                   //На всякий случай подождем, чтобы слишком быстро не слать команду
         //
-        NewDevComplete += "{\"IEEE\":\"" + u64toStr(new_device_LongAddr) + "\",";
-        NewDevComplete += "\"name\":\"" + NewDevName + "\",";
-        NewDevComplete += "\"short\":\"" + u16toStr(new_device_ShortAddr) + "\",";
+        NewDevComplete += "{" + u64toStr(new_device_LongAddr) + ": ";
+        NewDevComplete += NewDevName + " ; ";
+        NewDevComplete += u16toStr(new_device_ShortAddr) + " ; ";
         for (int i = 0; i < rxMessageData_newDevice[0]; i++)
         {
-          NewDevComplete += "\"EP ";
-          //NewDevComplete += String(i, DEC) + ":";
-          NewDevComplete += String(rxMessageData_newDevice[i + 1], DEC) + "\":[";
+          NewDevComplete += " Ep";
+          NewDevComplete += String(i, DEC) + ":";
+          NewDevComplete += String(rxMessageData_newDevice[i + 1], DEC) + " ; ";
           bindEp = rxMessageData_newDevice[i + 1];
           simpleDescriptorRequest(new_device_ShortAddr, bindEp);
           counter = 5000;
@@ -473,27 +395,24 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
               break;
             }
           }
-          //--------------------------------------- Get clusters -------------------------------------------------
+          ///Get clusters
           byte u8Length = 0;
           u8Length = ClDataNewDevice[0];
           if (u8Length > 0)
           {
-            //------------------------------------ INPUT clusters -------------------------------------------------
             byte u8InputClusterCount = 0;
             u8InputClusterCount = ClDataNewDevice[7];
-            NewDevComplete += "{\"inCluster\":[";
-            uint16_t u16Index = 8;
+            NewDevComplete += "Clusters ";
             for (int i = 0; i < u8InputClusterCount; i++)
             {
               uint16_t u16ClusterId = 0;
               u16ClusterId = ClDataNewDevice[(i * 2) + 8];
               u16ClusterId <<= 8;
               u16ClusterId |= ClDataNewDevice[(i * 2) + 9];
-              NewDevComplete += "\""+ u16toStr(u16ClusterId) + "\"";
-               if (i != (u8InputClusterCount-1)){
-                NewDevComplete += ",";
-                }
-              if (connectGood && sqliteCheckBind(NewDevName, u16toStr(u16ClusterId)) == 1) {
+              NewDevComplete += ": " + u16toStr(u16ClusterId);
+              //Тест механики биндда, если сработает будет круто ) Биндим все кластеры по очереди. и биндим только на новые устройства.
+              if (connectGood && needBind) {
+                Serial.println(u64toStr(new_device_LongAddr) + ", " +  String(bindEp, DEC) + ", " + u16toStr(u16ClusterId) + ", 3, " + u64toStr(u64ExtendedAddr_coord) + ", 1");
                 sendBindRequest(new_device_LongAddr, bindEp, u16ClusterId, 3, u64ExtendedAddr_coord, 1 );
                 counter = 5000;
                 while (!BindResponse) {
@@ -504,49 +423,16 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
                 }
                 BindResponse = false;
               }
-              u16Index += 2;
               delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
+              // sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
             }
-            //----------------------------------- OUTPUT clusters ---------------------------------------------------
-            byte u8OutputClusterCount = ClDataNewDevice[u16Index];
-            u16Index++;
-
-            NewDevComplete += "],\"outCluster\":[";
-            for (int i = 0; i < u8OutputClusterCount; i++)
-            {
-              uint16_t u16ClusterId = 0;
-
-              u16ClusterId = ClDataNewDevice[u16Index];
-              u16ClusterId <<= 8;
-              u16ClusterId |= ClDataNewDevice[u16Index + 1];
-              NewDevComplete += "\"" + u16toStr(u16ClusterId) + "\"";
-              if (i != (u8OutputClusterCount-1)){
-                NewDevComplete += ",";
-                }
-              if (connectGood && sqliteCheckBind(NewDevName, u16toStr(u16ClusterId)) == 1) {
-                sendBindRequest(new_device_LongAddr, bindEp, u16ClusterId, 3, u64ExtendedAddr_coord, 1 );
-                counter = 5000;
-                while (!BindResponse) {
-                  delay(1);
-                  if (counter-- == 0) {
-                    break;
-                  }
-                }
-                BindResponse = false;
-              }
-              u16Index += 2;
-              delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
-            }
-            NewDevComplete += "]";
-            //====================================================================================================
           }
           delay(50); //На всякий случай подождем, чтобы слишком быстро не слать команду
         }
-        NewDevComplete += "}]}";
+        NewDevComplete += " }";
         if (connectGood == true) {
           webSocket.broadcastTXT(NewDevComplete);
           sqlite_insertnewdev(u64toStr(new_device_LongAddr), NewDevName, u16toStr(new_device_ShortAddr));
-          sqliteInsertClusters(u64toStr(new_device_LongAddr), NewDevComplete);
         }
         else
         {
@@ -555,7 +441,7 @@ void TaskGetFullInfo(void *pvParameters)  // This is a task.
         }
         Serial.println(NewDevComplete);
 
-        connectGood = true; EpResponse = false; BindResponse = false; bindEp = 0; DnResponse = false; ClResponse = false; NewDevName = "";
+        connectGood = true; EpResponse = false; BindResponse = false; bindEp = 0; DnResponse = false; ClResponse = false; NewDevName = ""; //needBind = false;
         memset(rxMessageData_newDevice, 0, sizeof(rxMessageData_newDevice));
         memset(ClDataNewDevice, 0, sizeof(ClDataNewDevice));
       }
@@ -573,7 +459,7 @@ void TaskDelDevice(void *pvParameters)  // This is a task.
 
   for (;;) // A Task shall never return or exit.
   {
-    if (DelCall) {
+    if(DelCall){
       sqliteDeleteDevice(u64toStr(deletedDevLongAddr));
       Serial.println("Delete device from database");
       DelCall = false;

@@ -36,24 +36,9 @@ int db_exec(sqlite3 *db, const char *sql) {
    return rc;
 }
 
-int sqliteCheckBind(String deviceName, String cluster)
-{
-  String sql = "select * from bind where name = '" + deviceName + "' and cluster = '" + cluster + "'";
-  rc = sqlite3_prepare_v2(db, sql.c_str(), 1000, &res, &tail);
-  if (rc != SQLITE_OK) {
-    String resp = "Failed to fetch data: ";
-    Serial.println(resp.c_str());
-    return 0;
-  }
-  rec_count = 0;
-  while (sqlite3_step(res) == SQLITE_ROW) {
-    rec_count++;
-  }
-  sqlite3_finalize(res);
-  return rec_count;
-}
 
-int sqliteCheckIEEEinDb(String IEEE)
+
+int sqlite_select_answer(String IEEE)
 {
   String sql = "select * from devices where IEEE = '" + IEEE + "'";
   rc = sqlite3_prepare_v2(db, sql.c_str(), 1000, &res, &tail);
@@ -79,16 +64,6 @@ void sqlite_insertnewdev(String IEEE, String devname, String longaddr)
    }
 }
 
-
-void sqliteInsertClusters(String IEEE, String json)
-{
-  String sql = "INSERT INTO devinfo (IEEE,json) VALUES('" + IEEE + "','" + json + "');";
-   rc = db_exec(db, sql.c_str());
-   if (rc != SQLITE_OK) {
-       return;
-   }
-}
-
 void sqliteDeleteDevice(String IEEE)
 {
   //String sql = "delete from endpoints where IEEE = '" + IEEE + "'";
@@ -99,10 +74,14 @@ void sqliteDeleteDevice(String IEEE)
    }
 }
 
-void sqlCommand(String sql)
+
+/*
+void sqlite_insertnewdev(String IEEE, String devname, String longaddr)
 {
+  String sql = "INSERT INTO devices (IEEE,name,shortaddr) VALUES('" + IEEE + "','" + devname + "','" + longaddr + "');";
    rc = db_exec(db, sql.c_str());
    if (rc != SQLITE_OK) {
        return;
    }
 }
+*/
